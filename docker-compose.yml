@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  postgres:
+    container_name: postgres
+    image: postgres:latest
+    env_file:
+      - .env
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - my_network
+
+  master:
+    container_name: master
+    build:
+      context: ./master
+      dockerfile: ../Dockerfile
+    command: python main.py
+    env_file:
+      - .env
+    volumes:
+      - ./master:/app
+    depends_on:
+      - postgres
+    networks:
+      - my_network
+
+  servant:
+    container_name: servant
+    build:
+      context: ./servant
+      dockerfile: ../Dockerfile
+    command: sh -c "python main.py & uvicorn api:app --host 0.0.0.0 --port 8001"
+    ports:
+      - "8001:8001"
+    env_file:
+      - .env
+    volumes:
+      - ./servant:/app
+    depends_on:
+      - postgres
+    networks:
+      - my_network
+
+  api:
+    container_name: api
+    build:
+      context: ./api
+      dockerfile: ../Dockerfile
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./api:/app
+    depends_on:
+      - postgres
+    networks:
+      - my_network
+
+volumes:
+  postgres_data:
+
+networks:
+  my_network:
+    driver: bridge

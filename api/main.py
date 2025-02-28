@@ -2,7 +2,8 @@ import httpx
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from models import Message, MessageCreate, UserCreate, User
+from models import Message, User
+from schemas import MessageCreate, UserCreate
 from database import async_session_factory, Base, async_engine
 
 app = FastAPI()

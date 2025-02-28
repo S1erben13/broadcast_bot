@@ -25,7 +25,7 @@ async def send_follower_to_api(user_id : int | str, chat_id: int | str) -> None:
             )
             response.raise_for_status()
         except httpx.HTTPError as e:
-            print(f"Ошибка при отправке пользователя в api: {e}")
+            logging.error(f"Ошибка при отправке пользователя в api: {e}")
 
 async def get_followers_from_api():
     """
@@ -38,12 +38,18 @@ async def get_followers_from_api():
             followers = response.json()['users']
             return followers
         except httpx.HTTPError as e:
-            print(f"Ошибка при получении пользователей с api: {e}")
+            logging.error(f"Ошибка при получении пользователей с api: {e}")
 
 @dp.message(Command("follow"))
 async def cmd_follow(message: types.Message,):
     chat_id = message.chat.id
     user_id = message.from_user.id
+    # followers = await get_followers_from_api()
+    # for user in followers:
+    #     print(user)
+    #     if chat_id == user['chat_id']:
+    #         await message.answer("Вы уже подписаны!")
+    #         return
     await send_follower_to_api(chat_id, user_id)
     await message.answer("Вы подписались на рассылку!")
 
@@ -54,7 +60,7 @@ async def broadcast_message(message: Message):
         try:
             await bot.send_message(user['chat_id'], message.text)
         except Exception as e:
-            logging.error(f"Ошибка при отправке сообщения пользователю {user['chat_id']}: {e}")
+            logging.error(f"Ошибка при отправке сообщения пользователю {user['user_id']}: {e}")
     return {"status": "ok"}
 
 # Запуск бота

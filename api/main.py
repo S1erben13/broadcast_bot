@@ -1,3 +1,5 @@
+import logging
+
 import httpx
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from sqlalchemy import select
@@ -8,6 +10,7 @@ from database import async_session_factory, Base, async_engine
 
 app = FastAPI()
 
+logging.basicConfig(level=logging.INFO)
 
 async def get_async_session() -> AsyncSession:
     async with async_session_factory() as session:
@@ -18,7 +21,7 @@ async def get_async_session() -> AsyncSession:
 async def startup():
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    # print("Таблицы успешно созданы")
+    logging.INFO("Таблицы успешно созданы")
 
 
 async def send_message_to_servant(message_text: str):
@@ -33,7 +36,7 @@ async def send_message_to_servant(message_text: str):
             )
             response.raise_for_status()
         except httpx.HTTPError as e:
-            print(f"Ошибка при отправке сообщения на servant: {e}")
+            logging.error(f"Ошибка при отправке сообщения на servant: {e}")
 
 
 @app.post("/messages")

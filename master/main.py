@@ -3,14 +3,10 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.enums import ParseMode
 from aiogram.client.bot import DefaultBotProperties
 import httpx
-from dotenv import load_dotenv
-import os
+from config import TOKEN, API_URL
 
 logging.basicConfig(level=logging.INFO)
 
-TOKEN = os.getenv('MASTER_TOKEN')
-
-API_URL = 'http://api:8000/messages'
 
 # Инициализация бота и диспетчера
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))

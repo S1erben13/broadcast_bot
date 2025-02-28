@@ -4,14 +4,10 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.enums import ParseMode
 from aiogram.client.bot import DefaultBotProperties
-from dotenv import load_dotenv
-import os
-
+from config import TOKEN
 from models import Message
 
 logging.basicConfig(level=logging.INFO)
-
-TOKEN = os.getenv('SERVANT_TOKEN')
 
 # Инициализация бота и диспетчера
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))

@@ -3,7 +3,7 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.enums import ParseMode
 from aiogram.client.bot import DefaultBotProperties
 import httpx
-from config import TOKEN, API_URL
+from config import TOKEN, API_URL, MESSAGES, HTTP_TIMEOUT, API_RESPONSE_FORMAT
 
 logging.basicConfig(level=logging.INFO)
 
@@ -20,9 +20,9 @@ async def send_message_to_api(author_id: str, text: str):
             response = await client.post(
                 API_URL,
                 json={"author_id": author_id, "text": text},
-                timeout=10.0
+                timeout=HTTP_TIMEOUT  # Используем переменную
             )
-            response.raise_for_status()  # Проверка на ошибки HTTP
+            response.raise_for_status()
             return response.json()
         except httpx.HTTPError as e:
             logging.error(f"Ошибка при отправке запроса к API: {e}")
@@ -32,17 +32,18 @@ async def send_message_to_api(author_id: str, text: str):
 # Обработчик текстовых сообщений
 @dp.message()
 async def echo(message: types.Message):
-    # Получаем ID пользователя и текст сообщения
     author_id = str(message.from_user.id)
     text = message.text
 
-    # Отправляем данные на ваш API
     api_response = await send_message_to_api(author_id, text)
 
     if api_response:
-        await message.answer(f"Сообщение успешно отправлено! Ответ API: {api_response}")
+        response_message = MESSAGES["message_sent"].format(
+            api_response=API_RESPONSE_FORMAT.format(api_response=api_response)
+        )
+        await message.answer(response_message)
     else:
-        await message.answer("Произошла ошибка при отправке сообщения. Попробуйте позже.")
+        await message.answer(MESSAGES["message_send_error"])
 
 
 # Запуск бота

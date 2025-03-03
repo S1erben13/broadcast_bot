@@ -38,6 +38,3 @@ Docker and Docker Compose for easy deployment.
 
 ## Environment Management:
 .env files for configuration.
-
-# Why "Command Spell"?
-The name reflects the core functionality of the system: a "Master" (user) can issue a "Command" (message) that is delivered to their "Servants" (subscribed users). While the inspiration comes from the Fate series, the system is designed to be simple, efficient, and easy to use.

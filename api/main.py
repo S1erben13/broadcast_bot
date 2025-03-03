@@ -21,7 +21,7 @@ async def get_async_session() -> AsyncSession:
 async def startup():
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    logging.INFO("Таблицы успешно созданы")
+    # logging.INFO("Таблицы успешно созданы")
 
 
 async def send_message_to_servant(message_text: str):

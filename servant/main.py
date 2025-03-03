@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 
-async def send_follower_to_api(user_id : int | str, chat_id: int | str) -> None:
+async def send_follower_to_api(user_id: int | str, chat_id: int | str) -> None:
     """
     Функция для отправки пользователя на api:8000/users.
     """
@@ -24,8 +24,17 @@ async def send_follower_to_api(user_id : int | str, chat_id: int | str) -> None:
                 json={"user_id": str(user_id), "chat_id": str(chat_id)}
             )
             response.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            # Извлекаем текст ошибки из тела ответа
+            error_detail = e.response.json().get("detail", "")
+            if "Chat ID already exists" in error_detail:
+                logging.warning(f"Chat ID already exists: {error_detail}")
+            else:
+                logging.error(f"Ошибка при отправке пользователя в api: {error_detail}")
+            raise  # Пробрасываем исключение дальше
         except httpx.HTTPError as e:
             logging.error(f"Ошибка при отправке пользователя в api: {e}")
+            raise  # Пробрасываем исключение дальше
 
 async def get_followers_from_api():
     """
@@ -41,17 +50,20 @@ async def get_followers_from_api():
             logging.error(f"Ошибка при получении пользователей с api: {e}")
 
 @dp.message(Command("follow"))
-async def cmd_follow(message: types.Message,):
+async def cmd_follow(message: types.Message):
     chat_id = message.chat.id
     user_id = message.from_user.id
-    # followers = await get_followers_from_api()
-    # for user in followers:
-    #     print(user)
-    #     if chat_id == user['chat_id']:
-    #         await message.answer("Вы уже подписаны!")
-    #         return
-    await send_follower_to_api(chat_id, user_id)
-    await message.answer("Вы подписались на рассылку!")
+    try:
+        await send_follower_to_api(chat_id, user_id)
+        await message.answer("Вы подписались на рассылку!")
+    except httpx.HTTPStatusError as e:
+        error_detail = e.response.json().get("detail", "")
+        if "Chat ID already exists" in error_detail:
+            await message.answer("Вы уже подписаны на рассылку!")
+        else:
+            await message.answer("Произошла ошибка при попытке подписки.")
+    except httpx.HTTPError as e:
+        await message.answer("Произошла ошибка при попытке подписки.")
 
 # Функция для рассылки сообщений подписанным пользователям
 async def broadcast_message(message: Message):

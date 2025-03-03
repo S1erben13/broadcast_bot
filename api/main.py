@@ -5,6 +5,8 @@ from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from sqlalchemy import select, delete
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from config import SERVANT_BASE_URL, SUCCESS_MESSAGES, ERROR_MESSAGES
 from models import Message, User
 from schemas import MessageCreate, UserCreate
 from database import async_session_factory, Base, async_engine
@@ -27,12 +29,12 @@ async def startup():
 
 async def send_message_to_servant(message_text: str):
     """
-    Функция для отправки сообщения на servant:8001/send_message.
+    Функция для отправки сообщения на servant.
     """
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(
-                "http://servant:8001/send_message",
+                f"{SERVANT_BASE_URL}/send_message",  # Используем переменную
                 json={"text": message_text}
             )
             response.raise_for_status()
@@ -85,13 +87,13 @@ async def create_user(
         }
     except IntegrityError as e:
         await session.rollback()
-        if "user_chat_id_key" in str(e):  # Проверяем, что ошибка связана с уникальностью chat_id
-            raise HTTPException(status_code=400, detail="Chat ID already exists")
+        if "user_chat_id_key" in str(e):
+            raise HTTPException(status_code=400, detail=ERROR_MESSAGES["chat_id_exists"])
         else:
-            raise HTTPException(status_code=500, detail="Database integrity error")
+            raise HTTPException(status_code=500, detail=ERROR_MESSAGES["database_integrity_error"])
     except Exception as e:
         await session.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=ERROR_MESSAGES["internal_server_error"])
 
 @app.delete("/users/{chat_id}")
 async def delete_user(
@@ -103,17 +105,16 @@ async def delete_user(
             delete(User).where(User.chat_id == chat_id)
         )
         if result.rowcount == 0:
-            raise HTTPException(status_code=404, detail="User not found")
+            raise HTTPException(status_code=404, detail=ERROR_MESSAGES["user_not_found"])
         await session.commit()
-        return {"status": "User deleted"}
+        return {"status": SUCCESS_MESSAGES["user_deleted"]}
     except Exception as e:
         await session.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-
+        raise HTTPException(status_code=500, detail=ERROR_MESSAGES["internal_server_error"])
 
 @app.get("/ping")
 async def ping():
-    return {"message": "pong!"}
+    return {"message": SUCCESS_MESSAGES["pong"]}
 
 
 @app.get("/messages")

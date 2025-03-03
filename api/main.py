@@ -2,7 +2,8 @@ import logging
 
 import httpx
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
-from sqlalchemy import select
+from sqlalchemy import select, delete
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from models import Message, User
 from schemas import MessageCreate, UserCreate
@@ -72,18 +73,39 @@ async def create_user(
         session: AsyncSession = Depends(get_async_session),
 ):
     try:
-        # Сохраняем сообщение в базу данных
         db_user = User(user_id=user.user_id, chat_id=user.chat_id)
         session.add(db_user)
         await session.commit()
         await session.refresh(db_user)
 
-        # Возвращаем результат
         return {
             "id": db_user.id,
             "user_id": db_user.user_id,
             "chat_id": db_user.chat_id,
         }
+    except IntegrityError as e:
+        await session.rollback()
+        if "user_chat_id_key" in str(e):  # Проверяем, что ошибка связана с уникальностью chat_id
+            raise HTTPException(status_code=400, detail="Chat ID already exists")
+        else:
+            raise HTTPException(status_code=500, detail="Database integrity error")
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/users/{chat_id}")
+async def delete_user(
+    chat_id: str,
+    session: AsyncSession = Depends(get_async_session),
+):
+    try:
+        result = await session.execute(
+            delete(User).where(User.chat_id == chat_id)
+        )
+        if result.rowcount == 0:
+            raise HTTPException(status_code=404, detail="User not found")
+        await session.commit()
+        return {"status": "User deleted"}
     except Exception as e:
         await session.rollback()
         raise HTTPException(status_code=500, detail=str(e))

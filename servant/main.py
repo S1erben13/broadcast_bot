@@ -36,6 +36,24 @@ async def send_follower_to_api(user_id: int | str, chat_id: int | str) -> None:
             logging.error(f"Ошибка при отправке пользователя в api: {e}")
             raise  # Пробрасываем исключение дальше
 
+async def unfollow_user(chat_id: str) -> None:
+    """
+    Функция для отправки запроса на удаление пользователя.
+    """
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.delete(
+                f"http://api:8000/users/{chat_id}"
+            )
+            response.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            error_detail = e.response.json().get("detail", "")
+            logging.error(f"Ошибка при отписке: {error_detail}")
+            raise
+        except httpx.HTTPError as e:
+            logging.error(f"Ошибка при отписке: {e}")
+            raise
+
 async def get_followers_from_api():
     """
     Функция для получения пользователей с api:8000/users.
@@ -64,6 +82,21 @@ async def cmd_follow(message: types.Message):
             await message.answer("Произошла ошибка при попытке подписки.")
     except httpx.HTTPError as e:
         await message.answer("Произошла ошибка при попытке подписки.")
+
+@dp.message(Command("unfollow"))
+async def cmd_unfollow(message: types.Message):
+    chat_id = str(message.chat.id)
+    try:
+        await unfollow_user(chat_id)
+        await message.answer("Вы отписались от рассылки.")
+    except httpx.HTTPStatusError as e:
+        error_detail = e.response.json().get("detail", "")
+        if "User not found" in error_detail:
+            await message.answer("Вы не были подписаны на рассылку.")
+        else:
+            await message.answer("Произошла ошибка при отписке.")
+    except httpx.HTTPError as e:
+        await message.answer("Произошла ошибка при отписке.")
 
 # Функция для рассылки сообщений подписанным пользователям
 async def broadcast_message(message: Message):

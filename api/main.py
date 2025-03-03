@@ -2,7 +2,7 @@ import logging
 
 import httpx
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from models import Message, User
@@ -98,6 +98,22 @@ async def create_user(
         await session.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.delete("/users/{chat_id}")
+async def delete_user(
+    chat_id: str,
+    session: AsyncSession = Depends(get_async_session),
+):
+    try:
+        result = await session.execute(
+            delete(User).where(User.chat_id == chat_id)
+        )
+        if result.rowcount == 0:
+            raise HTTPException(status_code=404, detail="User not found")
+        await session.commit()
+        return {"status": "User deleted"}
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/ping")
 async def ping():

@@ -1,11 +1,18 @@
-from dotenv import load_dotenv
 import os
+from typing import Dict
 
-TOKEN = os.getenv('SERVANT_TOKEN')
+from dotenv import load_dotenv
 
-API_BASE_URL = "http://api:8000"
+load_dotenv()
 
-MESSAGES = {
+Messages = Dict[str, str]
+Buttons = Dict[str, str]
+
+TOKEN: str = os.getenv("SERVANT_TOKEN")
+API_BASE_URL: str = os.getenv("API_BASE_URL", "http://api:8000")
+CHECK_MSGS_RATE = 60 # seconds
+
+MESSAGES: Messages = {
     "welcome": "Добро пожаловать! Выберите действие:",
     "subscribed": "Вы подписались на рассылку!",
     "already_subscribed": "Вы уже подписаны на рассылку!",
@@ -16,7 +23,11 @@ MESSAGES = {
     "unsubscription_error": "Произошла ошибка при отписке.",
 }
 
-BUTTONS = {
+BUTTONS: Buttons = {
     "follow": "/follow",
     "unfollow": "/unfollow",
 }
+
+if not TOKEN:
+    raise ValueError("SERVANT_TOKEN environment variable is not set.")
+

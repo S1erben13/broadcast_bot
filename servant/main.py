@@ -51,8 +51,14 @@ async def get_new_messages(last_message_id: int) -> List[Dict[str, Any]]:
     Returns:
         List[Dict[str, Any]]: A list of new messages.
     """
-    data = await fetch_data(f"{API_BASE_URL}/messages")
-    return [msg for msg in data.get("messages", []) if msg["id"] > last_message_id]
+    data = await fetch_data(f"{API_BASE_URL}/messages?last_message_id={last_message_id}")
+    if "error" in data:
+        logger.error(f"Failed to fetch new messages: {data['error']}")
+        return []
+    if not isinstance(data.get("messages"), list):
+        logger.error("Invalid response format: 'messages' key is missing or not a list")
+        return []
+    return data["messages"]
 
 
 async def update_user(chat_id: str, last_message_id: int) -> bool:
@@ -66,7 +72,7 @@ async def update_user(chat_id: str, last_message_id: int) -> bool:
     Returns:
         bool: True if the update was successful, False otherwise.
     """
-    response = await fetch_data(f"{API_BASE_URL}/users/{chat_id}", method="PATCH", json={"last_message_got": last_message_id})
+    response = await fetch_data(f"{API_BASE_URL}/users/{chat_id}", method="PATCH", json={"last_message_id": last_message_id})
     return bool(response.get('success', False))
 
 
@@ -90,19 +96,20 @@ async def check_for_new_messages():
         try:
             followers = await get_followers()
             for user in followers:
-                if user.get("is_deleted", False):
+                if user.get("followed", True):
                     continue
-                messages = await get_new_messages(user.get("last_message_got", 0))
+                messages = await get_new_messages(user.get("last_message_id", 0))
                 for message in messages:
                     try:
                         await bot.send_message(user["chat_id"], message["text"])
+                        # Обновляем last_message_id
                         await update_user(user["chat_id"], message["id"])
                     except Exception as e:
                         logger.error(f"Error sending message to {user['chat_id']}: {e}")
             await asyncio.sleep(CHECK_MSGS_RATE)
         except Exception as e:
             logger.exception(f"Error in check_for_new_messages: {e}")  # Log the full traceback
-            await asyncio.sleep(60)
+            await asyncio.sleep(CHECK_MSGS_RATE)
 
 
 async def handle_user(chat_id: str, user_id: str, action: str) -> str:
@@ -120,17 +127,21 @@ async def handle_user(chat_id: str, user_id: str, action: str) -> str:
     data = await fetch_data(f"{API_BASE_URL}/users/{chat_id}", method="GET")
     if data.get("error"):
         # User not found, create a new entry
-        await fetch_data(f"{API_BASE_URL}/users", method="POST", json={"user_id": user_id, "chat_id": chat_id})
-        return MESSAGES["subscribed"] if action == "follow" else MESSAGES["unsubscribed"] # Assume success on creation
+        # Получаем ID последнего сообщения
+        messages_data = await fetch_data(f"{API_BASE_URL}/messages/last_message_id?last_message_id=0")
+        last_message_id = messages_data["messages"][-1]["id"] if messages_data.get("messages") else 0
+        # Создаем пользователя с last_message_id
+        await fetch_data(f"{API_BASE_URL}/users", method="POST", json={"user_id": user_id, "chat_id": chat_id, "last_message_id": last_message_id})
+        return MESSAGES["subscribed"] if action == "follow" else MESSAGES["unsubscribed"]
     elif action == "follow":
-        if data.get("is_deleted", True):
-            await fetch_data(f"{API_BASE_URL}/users/{chat_id}", method="PATCH", json={"is_deleted": False})
+        if data.get("followed", False):
+            await fetch_data(f"{API_BASE_URL}/users/{chat_id}", method="PATCH", json={"followed": True})
             return MESSAGES["subscribed"]
         else:
             return MESSAGES["already_subscribed"]
     elif action == "unfollow":
-        if not data.get("is_deleted", True):
-            await fetch_data(f"{API_BASE_URL}/users/{chat_id}", method="PATCH", json={"is_deleted": True})
+        if not data.get("followed", False):
+            await fetch_data(f"{API_BASE_URL}/users/{chat_id}", method="PATCH", json={"followed": False})
             return MESSAGES["unsubscribed"]
         else:
             return MESSAGES["already_unsubscribed"]

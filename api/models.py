@@ -16,4 +16,4 @@ class User(Base):
     user_id: Mapped[str] = Column(String)
     chat_id: Mapped[str] = Column(String, unique=True)
     last_message_id: Mapped[str] = Column(Integer)
-    is_deleted: Mapped[bool] = Column(Boolean, default=False)
+    followed: Mapped[bool] = Column(Boolean, default=True)

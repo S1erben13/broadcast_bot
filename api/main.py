@@ -2,7 +2,7 @@ import logging
 
 import httpx
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
-from sqlalchemy import select, delete, update
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -127,7 +127,7 @@ async def get_user(
             "id": user.id,
             "user_id": user.user_id,
             "chat_id": user.chat_id,
-            "is_deleted": user.is_deleted,
+            "followed": user.followed,
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -166,7 +166,7 @@ async def get_users():
             users = result.scalars().all()
 
             user_list = [
-                {"id": user.id, "user_id": user.user_id, "chat_id": user.chat_id}
+                {"id": user.id, "user_id": user.user_id, "chat_id": user.chat_id, "followed": user.followed, "last_message_id": user.last_message_id}
                 for user in users
             ]
             return {"users": user_list}

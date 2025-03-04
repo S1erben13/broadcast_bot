@@ -9,5 +9,5 @@ class UserCreate(BaseModel):
     chat_id: str
 
 class UserUpdate(BaseModel):
-    is_deleted: bool | None = None
+    followed: bool | None = None
     last_message_id: int | None = None

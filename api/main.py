@@ -1,5 +1,4 @@
 import logging
-
 import httpx
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from sqlalchemy import select, update
@@ -16,49 +15,73 @@ app = FastAPI()
 logging.basicConfig(level=logging.INFO)
 
 async def get_async_session() -> AsyncSession:
+    """
+    Provides an asynchronous database session.
+
+    Yields:
+        AsyncSession: An asynchronous SQLAlchemy session.
+    """
     async with async_session_factory() as session:
         yield session
 
 
 @app.on_event("startup")
 async def startup():
+    """
+    Initializes the database tables on application startup.
+    """
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    # logging.INFO("Таблицы успешно созданы")
+    logging.info("Database tables created successfully.")
 
 
 async def send_message_to_servant(message_text: str):
     """
-    Функция для отправки сообщения на servant.
+    Sends a message to an external service (servant).
+
+    Args:
+        message_text (str): The text of the message to send.
     """
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(
-                f"{SERVANT_BASE_URL}/send_message",  # Используем переменную
+                f"{SERVANT_BASE_URL}/send_message",
                 json={"text": message_text}
             )
             response.raise_for_status()
         except httpx.HTTPError as e:
-            logging.error(f"Ошибка при отправке сообщения на servant: {e}")
+            logging.error(f"Error sending message to servant: {e}")
 
 
 @app.post("/messages")
 async def create_message(
-        message: MessageCreate,
-        background_tasks: BackgroundTasks,
-        session: AsyncSession = Depends(get_async_session),
+    message: MessageCreate,
+    background_tasks: BackgroundTasks,
+    session: AsyncSession = Depends(get_async_session),
 ):
+    """
+    Creates a new message and sends it to the servant in the background.
+
+    Args:
+        message (MessageCreate): The message data.
+        background_tasks (BackgroundTasks): FastAPI's background tasks utility.
+        session (AsyncSession): Database session.
+
+    Returns:
+        dict: The created message data.
+
+    Raises:
+        HTTPException: If an error occurs during message creation.
+    """
     try:
-        # Сохраняем сообщение в базу данных
         db_message = Message(author_id=message.author_id, text=message.text)
         session.add(db_message)
         await session.commit()
         await session.refresh(db_message)
 
-        # Добавляем задачу на отправку сообщения в servant
+        # Send the message to the servant in the background
         background_tasks.add_task(send_message_to_servant, message.text)
 
-        # Возвращаем результат
         return {
             "id": db_message.id,
             "author_id": db_message.author_id,
@@ -71,9 +94,22 @@ async def create_message(
 
 @app.post("/users")
 async def create_user(
-        user: UserCreate,
-        session: AsyncSession = Depends(get_async_session),
+    user: UserCreate,
+    session: AsyncSession = Depends(get_async_session),
 ):
+    """
+    Creates a new user.
+
+    Args:
+        user (UserCreate): The user data.
+        session (AsyncSession): Database session.
+
+    Returns:
+        dict: The created user data.
+
+    Raises:
+        HTTPException: If a user with the same chat_id already exists or another error occurs.
+    """
     try:
         db_user = User(user_id=user.user_id, chat_id=user.chat_id)
         session.add(db_user)
@@ -101,6 +137,20 @@ async def update_user(
     update_data: UserUpdate,
     session: AsyncSession = Depends(get_async_session),
 ):
+    """
+    Updates a user's data.
+
+    Args:
+        chat_id (str): The user's chat ID.
+        update_data (UserUpdate): The data to update.
+        session (AsyncSession): Database session.
+
+    Returns:
+        dict: A status message.
+
+    Raises:
+        HTTPException: If an error occurs during the update.
+    """
     try:
         await session.execute(
             update(User)
@@ -118,6 +168,19 @@ async def get_user(
     chat_id: str,
     session: AsyncSession = Depends(get_async_session),
 ):
+    """
+    Retrieves a user by their chat ID.
+
+    Args:
+        chat_id (str): The user's chat ID.
+        session (AsyncSession): Database session.
+
+    Returns:
+        dict: The user's data.
+
+    Raises:
+        HTTPException: If the user is not found or an error occurs.
+    """
     try:
         result = await session.execute(select(User).where(User.chat_id == chat_id))
         user = result.scalars().first()
@@ -132,30 +195,35 @@ async def get_user(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/ping")
-async def ping():
-    return {"message": SUCCESS_MESSAGES["pong"]}
-
-
 @app.get("/messages")
 async def get_messages(
-        last_message_id: int,
+    last_message_id: int,
 ):
+    """
+    Retrieves messages created after a specific message ID.
+
+    Args:
+        last_message_id (int): The ID of the last message the user has seen.
+
+    Returns:
+        dict: A list of new messages.
+
+    Raises:
+        HTTPException: If an error occurs while fetching messages.
+    """
     async with async_session_factory() as session:
         try:
-            # Получаем все сообщения из базы данных
             query = select(Message).where(Message.id > last_message_id)
             result = await session.execute(query)
             messages = result.scalars().all()
 
-            # Преобразуем сообщения в список словарей
             messages_list = [
                 {"id": message.id, "author_id": message.author_id, "text": message.text}
                 for message in messages
             ]
             return {"messages": messages_list}
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Ошибка при получении сообщений: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error fetching messages: {str(e)}")
 
 @app.get("/users")
 async def get_users():

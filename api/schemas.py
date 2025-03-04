@@ -10,4 +10,4 @@ class UserCreate(BaseModel):
 
 class UserUpdate(BaseModel):
     is_deleted: bool | None = None
-    last_message_got: int | None = None
+    last_message_id: int | None = None

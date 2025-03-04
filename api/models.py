@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text
+from sqlalchemy import Column, Integer, String, Text, Boolean
 from sqlalchemy.orm import Mapped
 from database import Base
 
@@ -15,3 +15,5 @@ class User(Base):
     id: Mapped[int] = Column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[str] = Column(String)
     chat_id: Mapped[str] = Column(String, unique=True)
+    last_message_got: Mapped[str] = Column(Integer)
+    is_deleted: Mapped[bool] = Column(Boolean, default=False)

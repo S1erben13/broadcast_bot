@@ -2,13 +2,13 @@ import logging
 
 import httpx
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import SERVANT_BASE_URL, SUCCESS_MESSAGES, ERROR_MESSAGES
 from models import Message, User
-from schemas import MessageCreate, UserCreate
+from schemas import MessageCreate, UserCreate, UserUpdate
 from database import async_session_factory, Base, async_engine
 
 app = FastAPI()
@@ -95,22 +95,42 @@ async def create_user(
         await session.rollback()
         raise HTTPException(status_code=500, detail=ERROR_MESSAGES["internal_server_error"])
 
-@app.delete("/users/{chat_id}")
-async def delete_user(
+@app.patch("/users/{chat_id}")
+async def update_user(
+    chat_id: str,
+    update_data: UserUpdate,
+    session: AsyncSession = Depends(get_async_session),
+):
+    try:
+        await session.execute(
+            update(User)
+            .where(User.chat_id == chat_id)
+            .values(**update_data.dict(exclude_unset=True))
+        )
+        await session.commit()
+        return {"status": "User updated"}
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/users/{chat_id}")
+async def get_user(
     chat_id: str,
     session: AsyncSession = Depends(get_async_session),
 ):
     try:
-        result = await session.execute(
-            delete(User).where(User.chat_id == chat_id)
-        )
-        if result.rowcount == 0:
-            raise HTTPException(status_code=404, detail=ERROR_MESSAGES["user_not_found"])
-        await session.commit()
-        return {"status": SUCCESS_MESSAGES["user_deleted"]}
+        result = await session.execute(select(User).where(User.chat_id == chat_id))
+        user = result.scalars().first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return {
+            "id": user.id,
+            "user_id": user.user_id,
+            "chat_id": user.chat_id,
+            "is_deleted": user.is_deleted,
+        }
     except Exception as e:
-        await session.rollback()
-        raise HTTPException(status_code=500, detail=ERROR_MESSAGES["internal_server_error"])
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/ping")
 async def ping():

@@ -5,7 +5,7 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from config import SERVANT_BASE_URL, SUCCESS_MESSAGES, ERROR_MESSAGES
+from config import ERROR_MESSAGES
 from models import Message, User
 from schemas import MessageCreate, UserCreate, UserUpdate
 from database import async_session_factory, Base, async_engine
@@ -35,24 +35,6 @@ async def startup():
     logging.info("Database tables created successfully.")
 
 
-async def send_message_to_servant(message_text: str):
-    """
-    Sends a message to an external service (servant).
-
-    Args:
-        message_text (str): The text of the message to send.
-    """
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.post(
-                f"{SERVANT_BASE_URL}/send_message",
-                json={"text": message_text}
-            )
-            response.raise_for_status()
-        except httpx.HTTPError as e:
-            logging.error(f"Error sending message to servant: {e}")
-
-
 @app.post("/messages")
 async def create_message(
     message: MessageCreate,
@@ -79,14 +61,12 @@ async def create_message(
         await session.commit()
         await session.refresh(db_message)
 
-        # Send the message to the servant in the background
-        background_tasks.add_task(send_message_to_servant, message.text)
-
         return {
             "id": db_message.id,
             "author_id": db_message.author_id,
             "text": db_message.text,
         }
+
     except Exception as e:
         await session.rollback()
         raise HTTPException(status_code=500, detail=str(e))

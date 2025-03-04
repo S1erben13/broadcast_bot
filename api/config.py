@@ -7,8 +7,6 @@ postgres_db = os.getenv("POSTGRES_DB")
 
 url = f'postgresql+asyncpg://{postgres_user}:{postgres_password}@postgres:5432/{postgres_db}'
 
-SERVANT_BASE_URL = "http://servant:8001"
-
 ERROR_MESSAGES = {
     "chat_id_exists": "Chat ID already exists",
     "database_integrity_error": "Database integrity error",

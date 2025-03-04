@@ -177,16 +177,6 @@ async def cmd_unfollow(message: types.Message):
         if "User already unfollowed" in str(e):
             await message.answer(MESSAGES["already_unsubscribed"])
 
-# Функция для рассылки сообщений подписанным пользователям
-async def broadcast_message(message: Message):
-    followers = await get_followers_from_api()
-    for user in followers:
-        try:
-            await bot.send_message(user['chat_id'], message.text)
-        except Exception as e:
-            logging.error(f"Ошибка при отправке сообщения пользователю {user['user_id']}: {e}")
-    return {"status": "ok"}
-
 # Запуск бота
 async def main():
     asyncio.create_task(check_for_new_messages())

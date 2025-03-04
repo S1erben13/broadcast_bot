@@ -57,7 +57,7 @@ async def check_for_new_messages():
             logging.error(f"Ошибка в check_for_new_messages: {e}")
             await asyncio.sleep(60)
 
-async def send_follower_to_api(user_id: int | str, chat_id: int | str) -> None:
+async def follow_user(user_id: int | str, chat_id: int | str) -> None:
     """
     Отправляет запрос на подписку пользователя.
     Если пользователь уже существует, но был отписан, обновляет его статус.
@@ -141,7 +141,7 @@ async def cmd_follow(message: types.Message):
     chat_id = message.chat.id
     user_id = message.from_user.id
     try:
-        await send_follower_to_api(chat_id, user_id)
+        await follow_user(chat_id, user_id)
         await message.answer(MESSAGES["subscribed"])  # Уведомление о подписке
     except Exception as e:
         if "Chat ID already exists" in str(e):

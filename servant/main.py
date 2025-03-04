@@ -64,12 +64,10 @@ async def follow_user(user_id: int | str, chat_id: int | str) -> None:
     """
     async with httpx.AsyncClient() as client:
         try:
-            # Проверяем, существует ли пользователь с таким chat_id
             response = await client.get(f"{API_BASE_URL}/users/{chat_id}")
             if response.status_code == 200:
                 user = response.json()
-                if user.get("is_deleted", False):
-                    # Если пользователь отписан, обновляем его статус
+                if user.get("is_deleted", True):
                     await client.patch(
                         f"{API_BASE_URL}/users/{chat_id}",
                         json={"is_deleted": False}
@@ -100,11 +98,22 @@ async def follow_user(user_id: int | str, chat_id: int | str) -> None:
 async def unfollow_user(chat_id: str) -> None:
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.patch(
-                f"{API_BASE_URL}/users/{chat_id}",
-                json={"is_deleted": True}
-            )
-            response.raise_for_status()
+            response = await client.get(f"{API_BASE_URL}/users/{chat_id}")
+            if response.status_code == 200:
+                user = response.json()
+                if user.get("is_deleted", True):
+                    logging.warning(f"Пользователь {chat_id} уже отписан.")
+                    raise Exception("User already unfollowed")
+                else:
+                    try:
+                        response = await client.patch(
+                            f"{API_BASE_URL}/users/{chat_id}",
+                            json={"is_deleted": True}
+                        )
+                        response.raise_for_status()
+                    except httpx.HTTPError as e:
+                        logging.error(f"Ошибка при отписке: {e}")
+                        raise
         except httpx.HTTPStatusError as e:
             error_detail = e.response.json().get("detail", "")
             logging.error(f"Ошибка при отписке: {error_detail}")
@@ -155,7 +164,7 @@ async def cmd_unfollow(message: types.Message):
     chat_id = str(message.chat.id)
     try:
         await unfollow_user(chat_id)
-        await message.answer(MESSAGES["unsubscribed"])  
+        await message.answer(MESSAGES["unsubscribed"])
     except httpx.HTTPStatusError as e:
         error_detail = e.response.json().get("detail", "")
         if "User not found" in error_detail:
@@ -163,7 +172,10 @@ async def cmd_unfollow(message: types.Message):
         else:
             await message.answer(MESSAGES["unsubscription_error"])  
     except httpx.HTTPError as e:
-        await message.answer(MESSAGES["unsubscription_error"]) 
+        await message.answer(MESSAGES["unsubscription_error"])
+    except Exception as e:
+        if "User already unfollowed" in str(e):
+            await message.answer(MESSAGES["already_unsubscribed"])
 
 # Функция для рассылки сообщений подписанным пользователям
 async def broadcast_message(message: Message):

@@ -138,11 +138,13 @@ async def ping():
 
 
 @app.get("/messages")
-async def get_messages():
+async def get_messages(
+        last_message_id: int,
+):
     async with async_session_factory() as session:
         try:
             # Получаем все сообщения из базы данных
-            query = select(Message)
+            query = select(Message).where(Message.id > last_message_id)
             result = await session.execute(query)
             messages = result.scalars().all()
 

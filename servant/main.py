@@ -101,7 +101,8 @@ async def unfollow_user(chat_id: str) -> None:
     async with httpx.AsyncClient() as client:
         try:
             response = await client.patch(
-                f"{API_BASE_URL}/users/{chat_id}"  
+                f"{API_BASE_URL}/users/{chat_id}",
+                json={"is_deleted": True}
             )
             response.raise_for_status()
         except httpx.HTTPStatusError as e:

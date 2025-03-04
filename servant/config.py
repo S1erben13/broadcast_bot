@@ -10,7 +10,7 @@ Buttons = Dict[str, str]
 
 TOKEN: str = os.getenv("SERVANT_TOKEN")
 API_BASE_URL: str = os.getenv("API_BASE_URL", "http://api:8000")
-CHECK_MSGS_RATE = os.getenv("CHECK_MSGS_RATE", 60)
+CHECK_MSGS_RATE = int(os.getenv("CHECK_MSGS_RATE", 60))
 
 MESSAGES: Messages = {
     "welcome": "Добро пожаловать! Выберите действие:",

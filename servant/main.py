@@ -22,20 +22,20 @@ dp = Dispatcher()
 
 async def fetch_data(url: str, method: str = "GET", json: Dict[str, Any] = None) -> Dict[str, Any]:
     """
-    A generic function to fetch data from the API.
+    Sends a request to the API and returns the response.
 
     Args:
         url (str): The API endpoint URL.
-        method (str, optional): The HTTP method (GET, POST, PATCH, etc.). Defaults to "GET".
-        json (Dict[str, Any], optional): The JSON data to send in the request body. Defaults to None.
+        method (str): The HTTP method (GET, POST, PATCH, etc.).
+        json (Dict[str, Any]): The JSON payload for the request.
 
     Returns:
-        Dict[str, Any]: The JSON response from the API or an error dictionary.
+        Dict[str, Any]: The API response or an error dictionary.
     """
     async with httpx.AsyncClient() as client:
         try:
             response = await client.request(method, url, json=json)
-            response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
+            response.raise_for_status()
             return response.json()
         except httpx.HTTPError as e:
             logger.error(f"API error ({url}): {e}")
@@ -43,15 +43,14 @@ async def fetch_data(url: str, method: str = "GET", json: Dict[str, Any] = None)
 
 async def get_new_messages(last_message_id: int | None) -> List[Dict[str, Any]]:
     """
-    Retrieves new messages from the API since the last message ID.
+    Fetches new messages from the API.
 
     Args:
-        last_message_id (int | None): The ID of the last processed message. If None, defaults to 0.
+        last_message_id (int | None): The ID of the last message the user has seen.
 
     Returns:
         List[Dict[str, Any]]: A list of new messages.
     """
-    # Если last_message_id равен None, используем 0
     last_message_id = last_message_id if last_message_id is not None else 0
     data = await fetch_data(f"{API_BASE_URL}/messages?last_message_id={last_message_id}")
     if "error" in data:

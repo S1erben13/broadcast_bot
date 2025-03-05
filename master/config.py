@@ -10,7 +10,7 @@ if not TOKEN:
     raise ValueError("MASTER_TOKEN environment variable is not set.")
 
 # API endpoint for sending messages
-API_URL = 'http://api:8000/messages'
+API_URL = 'http://api:8000/'
 
 # Messages for user responses
 MESSAGES = {

@@ -27,7 +27,7 @@ async def send_message_to_api(author_id: str, text: str) -> dict | None:
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(
-                API_URL,
+                API_URL+"messages",
                 json={"author_id": author_id, "text": text},
                 timeout=HTTP_TIMEOUT
             )

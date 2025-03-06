@@ -20,3 +20,7 @@ class Master(BaseModel):
     user_id: str
     password: bytes
     active: bool = True
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str

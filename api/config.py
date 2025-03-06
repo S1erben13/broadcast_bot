@@ -14,6 +14,7 @@ url = f'postgresql+asyncpg://{postgres_user}:{postgres_password}@postgres:5432/{
 private_key_path = BASE_DIR / "certs" / "jwt-private.pem"
 public_key_path = BASE_DIR / "certs" / "jwt-public.pem"
 algorithm = 'RS256'
+access_token_expire_minutes: int = 15
 
 ERROR_MESSAGES = {
     "chat_id_exists": "Chat ID already exists",

@@ -1,4 +1,5 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
+
 
 class MessageCreate(BaseModel):
     author_id: str
@@ -11,3 +12,11 @@ class UserCreate(BaseModel):
 class UserUpdate(BaseModel):
     followed: bool | None = None
     last_message_id: int | None = None
+
+class Master(BaseModel):
+    model_config = ConfigDict(strict=True)
+
+    role : str | None = None
+    user_id: str
+    password: bytes
+    active: bool = True

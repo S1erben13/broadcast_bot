@@ -1,4 +1,6 @@
 import logging
+from typing import Dict, Any, List
+
 import httpx
 from aiogram import Bot, Dispatcher, types
 from aiogram.enums import ParseMode
@@ -7,10 +9,49 @@ from config import TOKEN, API_URL, MESSAGES, HTTP_TIMEOUT, API_RESPONSE_FORMAT
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Initialize bot and dispatcher
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
+
+async def fetch_data(url: str, method: str = "GET", json: Dict[str, Any] = None) -> Dict[str, Any]:
+    """
+    Sends a request to the API and returns the response.
+
+    Args:
+        url (str): The API endpoint URL.
+        method (str): The HTTP method (GET, POST, PATCH, etc.).
+        json (Dict[str, Any]): The JSON payload for the request.
+
+    Returns:
+        Dict[str, Any]: The API response or an error dictionary.
+    """
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.request(method, url, json=json)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as e:
+            logger.error(f"API error ({url}): {e}")
+            return {"error": str(e)}
+
+async def get_masters() -> List[Dict[str, Any]]:
+    """
+    Retrieves a list of masters from the API.
+
+    Returns:
+        List[Dict[str, Any]]: A list of follower data.  Returns an empty list if there's an API error.
+    """
+    data = await fetch_data(f"{API_URL}masters")
+    return data.get("masters", [])
+
+async def is_master(user_id):
+    masters = await get_masters()
+    for master in masters:
+        if user_id == master.get("user_id"):
+            return True
+    return False
 
 
 async def send_message_to_api(author_id: str, text: str) -> dict | None:
@@ -50,8 +91,11 @@ async def handle_message(message: types.Message):
     text = message.text
 
     # Send the message to the API
+    if not await is_master(author_id):
+        await message.answer(MESSAGES["not_master"])
+        return
+    # Send the message to the API
     api_response = await send_message_to_api(author_id, text)
-
     if api_response:
         # Format the success message with the API response
         response_message = MESSAGES["message_sent"].format(
@@ -60,9 +104,9 @@ async def handle_message(message: types.Message):
     else:
         # Use the error message if the API request failed
         response_message = MESSAGES["message_send_error"]
-
     # Send the response back to the user
     await message.answer(response_message)
+
 
 
 async def main():

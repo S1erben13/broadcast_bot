@@ -16,6 +16,7 @@ API_URL = 'http://api:8000/'
 MESSAGES = {
     "message_sent": "Message sent successfully! API response: {api_response}",
     "message_send_error": "An error occurred while sending the message. Please try again later.",
+    "not_master": "Only Master's can send message",
 }
 
 # HTTP request timeout

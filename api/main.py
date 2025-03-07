@@ -219,6 +219,29 @@ async def get_users():
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Ошибка при получении пользователей: {str(e)}")
 
+@app.get("/masters")
+async def get_masters():
+    """
+    Returns:
+        dict: A list of all masters.
+
+    Raises:
+        HTTPException: If an error occurs while fetching messages.
+    """
+    async with async_session_factory() as session:
+        try:
+            query = select(Master)
+            result = await session.execute(query)
+            masters = result.scalars().all()
+
+            masters_list = [
+                {"id": message.id, "user_id": message.user_id, "chat_id": message.chat_id}
+                for message in masters
+            ]
+            return {"masters": masters_list}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error fetching masters: {str(e)}")
+
 @app.post("/masters")
 async def create_master(
     user: MasterCreate,

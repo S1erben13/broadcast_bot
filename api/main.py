@@ -38,7 +38,6 @@ async def startup():
 @app.post("/messages")
 async def create_message(
     message: MessageCreate,
-    background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_async_session),
 ):
     """
@@ -46,7 +45,6 @@ async def create_message(
 
     Args:
         message (MessageCreate): The message data.
-        background_tasks (BackgroundTasks): FastAPI's background tasks utility.
         session (AsyncSession): Database session.
 
     Returns:

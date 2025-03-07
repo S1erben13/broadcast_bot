@@ -17,3 +17,10 @@ class User(Base):
     chat_id: Mapped[str] = Column(String, unique=True)
     last_message_id: Mapped[str] = Column(Integer)
     followed: Mapped[bool] = Column(Boolean, default=True)
+
+class Master(Base):
+    __tablename__ = 'master'
+
+    id: Mapped[int] = Column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = Column(String, unique=True)
+    chat_id: Mapped[str] = Column(String, unique=True)

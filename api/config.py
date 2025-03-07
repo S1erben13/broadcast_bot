@@ -18,6 +18,7 @@ access_token_expire_minutes: int = 15
 
 ERROR_MESSAGES = {
     "chat_id_exists": "Chat ID already exists",
+    "user_id_exists": "User ID already exists",
     "database_integrity_error": "Database integrity error",
     "user_not_found": "User not found",
     "internal_server_error": "Internal server error",

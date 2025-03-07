@@ -13,13 +13,8 @@ class UserUpdate(BaseModel):
     followed: bool | None = None
     last_message_id: int | None = None
 
-class Master(BaseModel):
-    model_config = ConfigDict(strict=True)
-
-    role : str | None = None
+class MasterCreate(BaseModel):
     user_id: str
-    password: bytes
-    active: bool = True
 
 class Token(BaseModel):
     access_token: str

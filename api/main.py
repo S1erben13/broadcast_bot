@@ -6,8 +6,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import ERROR_MESSAGES
-from models import Message, User
-from schemas import MessageCreate, UserCreate, UserUpdate
+from models import Message, User, Master
+from schemas import MessageCreate, UserCreate, UserUpdate, MasterCreate
 from database import async_session_factory, Base, async_engine
 
 app = FastAPI()
@@ -220,6 +220,47 @@ async def get_users():
             return {"users": user_list}
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Ошибка при получении пользователей: {str(e)}")
+
+@app.post("/masters")
+async def create_master(
+    user: MasterCreate,
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Creates a new Master.
+
+    Args:
+        user (MasterCreate): The user data.
+        session (AsyncSession): Database session.
+
+    Returns:
+        dict: The created master data.
+
+    Raises:
+        HTTPException: If a user with the same chat_id already exists or another error occurs.
+    """
+    try:
+        db_master = Master(user_id=user.user_id)
+        session.add(db_master)
+        await session.commit()
+        await session.refresh(db_master)
+
+        return {
+            "id": db_master.id,
+            "user_id": db_master.user_id,
+            "chat_id": db_master.user_id,
+        }
+    except IntegrityError as e:
+        await session.rollback()
+        if "master_user_id_key" in str(e):
+            raise HTTPException(status_code=400, detail=ERROR_MESSAGES["user_id_exists"])
+        elif "master_chat_id_key" in str(e):
+            raise HTTPException(status_code=400, detail=ERROR_MESSAGES["chat_id_exists"])
+        else:
+            raise HTTPException(status_code=500, detail=ERROR_MESSAGES["database_integrity_error"])
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=ERROR_MESSAGES["internal_server_error"])
 
 async def is_followed(chat_id):
     response = await get_users()

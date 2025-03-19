@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import ERROR_MESSAGES
 from models import Message, User, Master
-from schemas import MessageCreate, UserCreate, UserUpdate, MasterCreate
+from schemas import MessageCreate, UserCreate, UserUpdate, MasterCreate, MasterUpdate
 from database import async_session_factory, Base, async_engine
 
 app = FastAPI()
@@ -24,6 +24,10 @@ async def get_async_session() -> AsyncSession:
     async with async_session_factory() as session:
         yield session
 
+async def is_followed(chat_id):
+    response = await get_users()
+    users = response['users']
+    return any(chat_id == user['chat_id'] for user in users)
 
 @app.on_event("startup")
 async def startup():
@@ -230,7 +234,7 @@ async def get_masters():
     """
     async with async_session_factory() as session:
         try:
-            query = select(Master)
+            query = select(Master).where(Master.active == True)
             result = await session.execute(query)
             masters = result.scalars().all()
 
@@ -244,14 +248,14 @@ async def get_masters():
 
 @app.post("/masters")
 async def create_master(
-    user: MasterCreate,
+    master: MasterCreate,
     session: AsyncSession = Depends(get_async_session),
 ):
     """
     Creates a new Master.
 
     Args:
-        user (MasterCreate): The user data.
+        master (MasterCreate): The master data.
         session (AsyncSession): Database session.
 
     Returns:
@@ -261,7 +265,7 @@ async def create_master(
         HTTPException: If a user with the same chat_id already exists or another error occurs.
     """
     try:
-        db_master = Master(user_id=user.user_id)
+        db_master = Master(user_id=master.user_id, chat_id=master.chat_id)
         session.add(db_master)
         await session.commit()
         await session.refresh(db_master)
@@ -283,12 +287,68 @@ async def create_master(
         await session.rollback()
         raise HTTPException(status_code=500, detail=ERROR_MESSAGES["internal_server_error"])
 
-async def is_followed(chat_id):
-    response = await get_users()
-    for user in response["users"]:
-        if user["chat_id"] == chat_id:
-            return True
-    return False
+@app.get("/masters/{user_id}")
+async def get_master(
+    user_id: str,
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Retrieves a masters by their user ID.
+
+    Args:
+        user_id (str): The master's user ID.
+        session (AsyncSession): Database session.
+
+    Returns:
+        dict: The master's data.
+
+    Raises:
+        HTTPException: If the master is not found or an error occurs.
+    """
+    try:
+        result = await session.execute(select(Master).where(Master.user_id == user_id and Master.active == True))
+        master = result.scalars().first()
+        if not master:
+            raise HTTPException(status_code=404, detail="Master not found")
+        return {
+            "id": master.id,
+            "user_id": master.user_id,
+            "chat_id": master.chat_id,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.patch("/masters/{user_id}")
+async def update_master(
+    user_id: str,
+    update_data: MasterUpdate,
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Updates a master's data.
+
+    Args:
+        user_id (str): The user's ID.
+        update_data (MasterUpdate): The data to update.
+        session (AsyncSession): Database session.
+
+    Returns:
+        dict: A status message.
+
+    Raises:
+        HTTPException: If an error occurs during the update.
+    """
+    try:
+        await session.execute(
+            update(Master)
+            .where(Master.user_id == user_id)
+            .values(**update_data.dict(exclude_unset=True))
+        )
+        await session.commit()
+        return {"status": "Master updated"}
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":

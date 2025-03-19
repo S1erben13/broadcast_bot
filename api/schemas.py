@@ -15,6 +15,10 @@ class UserUpdate(BaseModel):
 
 class MasterCreate(BaseModel):
     user_id: str
+    chat_id: str
+
+class MasterUpdate(BaseModel):
+    active: bool | None = None
 
 class Token(BaseModel):
     access_token: str

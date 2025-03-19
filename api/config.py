@@ -11,8 +11,9 @@ postgres_db = os.getenv("POSTGRES_DB")
 
 url = f'postgresql+asyncpg://{postgres_user}:{postgres_password}@postgres:5432/{postgres_db}'
 
-private_key_path = BASE_DIR / "certs" / "jwt-private.pem"
-public_key_path = BASE_DIR / "certs" / "jwt-public.pem"
+private_key_path = BASE_DIR / "api" / "certs" / "jwt-private.pem"
+public_key_path = BASE_DIR / "api" / "certs" / "jwt-public.pem"
+
 algorithm = 'RS256'
 access_token_expire_minutes: int = 15
 
@@ -29,4 +30,3 @@ SUCCESS_MESSAGES = {
     "user_deleted": "User deleted",
     "pong": "pong!",
 }
-

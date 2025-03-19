@@ -5,7 +5,7 @@ import httpx
 from aiogram import Bot, Dispatcher, types
 from aiogram.enums import ParseMode
 from aiogram.client.bot import DefaultBotProperties
-from config import TOKEN, API_URL, MESSAGES, HTTP_TIMEOUT, API_RESPONSE_FORMAT
+from config import TOKEN, API_URL, MESSAGES, HTTP_TIMEOUT
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -60,7 +60,7 @@ async def is_master(user_id: int) -> bool:
         bool: True if the user is a master, False otherwise.
     """
     masters = await get_masters()
-    return any(user_id == master.get("user_id") for master in masters)
+    return any(int(user_id) == int(master.get("user_id")) for master in masters)
 
 
 async def send_message_to_api(author_id: str, text: str) -> Optional[Dict[str, Any]]:
@@ -76,6 +76,32 @@ async def send_message_to_api(author_id: str, text: str) -> Optional[Dict[str, A
     """
     return await fetch_data(f"{API_URL}messages", method="POST", json={"author_id": author_id, "text": text})
 
+# async def handle_master(chat_id: str, user_id: str, action: str) -> str:
+#     """
+#     Handles master's record to activate/deactivate requests.
+#
+#     Args:
+#         chat_id (str): The master's chat ID.
+#         user_id (str): The master's user ID.
+#         action (str): Either "activate" or "deactivate".
+#
+#     Returns:
+#         str: The appropriate message from MESSAGES based on the action and master status.
+#     """
+#     data = await fetch_data(f"{API_URL}/master/{user_id}", method="GET")
+#     if action == "activate":
+#         if not data.get("active", False):
+#             await fetch_data(f"{API_URL}/master/{user_id}", method="PATCH", json={"active": True})
+#             return MESSAGES["master_activated"]
+#         else:
+#             return MESSAGES["master_already_activated"]
+#     elif action == "deactivate":
+#         if data.get("active", False):
+#             await fetch_data(f"{API_URL}/users/{chat_id}", method="PATCH", json={"active": False})
+#             return MESSAGES["master_deactivated"]
+#         else:
+#             return MESSAGES["master_already_deactivated"]
+#     return MESSAGES["handle_error"]
 
 @dp.message()
 async def handle_message(message: types.Message):
@@ -95,12 +121,10 @@ async def handle_message(message: types.Message):
 
     # Send the message to the API
     api_response = await send_message_to_api(author_id, text)
-    if api_response and "error" not in api_response:
-        response_message = MESSAGES["message_sent"].format(
-            api_response=API_RESPONSE_FORMAT.format(api_response=api_response)
-        )
-    else:
+    if api_response and "error" in api_response:
         response_message = MESSAGES["message_send_error"]
+    else:
+        response_message = MESSAGES["message_sent"]
 
     # Send the response back to the user
     await message.answer(response_message)

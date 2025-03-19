@@ -24,3 +24,4 @@ class Master(Base):
     id: Mapped[int] = Column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[str] = Column(String, unique=True)
     chat_id: Mapped[str] = Column(String, unique=True)
+    active: Mapped[str] = Column(Boolean, default=True)

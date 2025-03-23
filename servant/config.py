@@ -9,6 +9,7 @@ Messages = Dict[str, str]
 Buttons = Dict[str, str]
 
 TOKEN: str = os.getenv("SERVANT_TOKEN")
+REG_SERVANT_TOKEN = os.getenv('REG_SERVANT_TOKEN')
 API_BASE_URL: str = os.getenv("API_BASE_URL", "http://api:8000")
 CHECK_MSGS_RATE = int(os.getenv("CHECK_MSGS_RATE", 60))
 
@@ -21,6 +22,7 @@ MESSAGES: Messages = {
     "not_subscribed": "Вы не были подписаны на рассылку.",
     "subscription_error": "Произошла ошибка при попытке подписки.",
     "unsubscription_error": "Произошла ошибка при отписке.",
+    "invalid_token": "Invalid registration token. Please provide a valid token to subscribe.",
 }
 
 BUTTONS: Buttons = {

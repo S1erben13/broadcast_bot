@@ -9,7 +9,7 @@ from aiogram.enums import ParseMode
 from aiogram.client.bot import DefaultBotProperties
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
 
-from config import TOKEN, API_BASE_URL, BUTTONS, MESSAGES, CHECK_MSGS_RATE
+from config import TOKEN, API_BASE_URL, BUTTONS, MESSAGES, CHECK_MSGS_RATE, REG_SERVANT_TOKEN
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -118,28 +118,41 @@ async def check_for_new_messages():
             await asyncio.sleep(CHECK_MSGS_RATE)
 
 
-async def handle_user(chat_id: str, user_id: str, action: str) -> str:
+async def handle_user(chat_id: str, user_id: str, action: str, token: str = None) -> str:
     """
     Handles user follow/unfollow requests.
+    Validates the token only on the first interaction (subscription).
 
     Args:
         chat_id (str): The user's chat ID.
         user_id (str): The user's ID.
         action (str): Either "follow" or "unfollow".
+        token (str): The registration token (required only for the first subscription).
 
     Returns:
         str: The appropriate message from MESSAGES based on the action and user status.
     """
+    # Fetch user data from the API
     data = await fetch_data(f"{API_BASE_URL}/users/{chat_id}", method="GET")
+
+    # If the user is not found, it's their first interaction
     if data.get("error"):
-        # User not found, create a new entry
-        # Получаем ID последнего сообщения
+        # Validate the token for the first subscription
+        if action == "follow" and token != REG_SERVANT_TOKEN:
+            return MESSAGES["invalid_token"]
+
+        # Create a new user entry
         messages_data = await fetch_data(f"{API_BASE_URL}/messages")
         last_message_id = messages_data["messages"][-1]["id"] if messages_data.get("messages") else 0
-        # Создаем пользователя с last_message_id
-        await fetch_data(f"{API_BASE_URL}/users", method="POST", json={"user_id": user_id, "chat_id": chat_id, "last_message_id": last_message_id})
+        await fetch_data(
+            f"{API_BASE_URL}/users",
+            method="POST",
+            json={"user_id": user_id, "chat_id": chat_id, "last_message_id": last_message_id}
+        )
         return MESSAGES["subscribed"] if action == "follow" else MESSAGES["unsubscribed"]
-    elif action == "follow":
+
+    # Handle follow/unfollow for existing users
+    if action == "follow":
         if not data.get("followed", False):
             await fetch_data(f"{API_BASE_URL}/users/{chat_id}", method="PATCH", json={"followed": True})
             return MESSAGES["subscribed"]
@@ -168,13 +181,23 @@ async def cmd_start(message: types.Message):
 @dp.message(Command("follow"))
 async def cmd_follow(message: types.Message):
     """Handles the /follow command."""
-    await message.answer(await handle_user(str(message.chat.id), str(message.from_user.id), "follow"))
+    # Extract the token from the message (if provided)
+    try:
+        _, token = message.text.split()
+    except ValueError:
+        token = None
+
+    # Pass the token to handle_user
+    response = await handle_user(str(message.chat.id), str(message.from_user.id), "follow", token)
+    await message.answer(response)
 
 
 @dp.message(Command("unfollow"))
 async def cmd_unfollow(message: types.Message):
     """Handles the /unfollow command."""
-    await message.answer(await handle_user(str(message.chat.id), str(message.from_user.id), "unfollow"))
+    # Unfollow does not require a token
+    response = await handle_user(str(message.chat.id), str(message.from_user.id), "unfollow")
+    await message.answer(response)
 
 
 async def main():

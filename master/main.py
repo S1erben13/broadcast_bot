@@ -5,7 +5,9 @@ import httpx
 from aiogram import Bot, Dispatcher, types
 from aiogram.enums import ParseMode
 from aiogram.client.bot import DefaultBotProperties
-from config import TOKEN, API_URL, MESSAGES, HTTP_TIMEOUT
+from aiogram.filters import Command
+
+from config import TOKEN, API_URL, MESSAGES, HTTP_TIMEOUT, REG_MASTER_TOKEN
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -76,15 +78,48 @@ async def send_message_to_api(author_id: str, text: str) -> Optional[Dict[str, A
     """
     return await fetch_data(f"{API_URL}messages", method="POST", json={"author_id": author_id, "text": text})
 
+@dp.message(Command("register"))
+async def register_master(message: types.Message):
+    """
+    Handles the /register command to register a new master.
+    """
+    user_id = str(message.from_user.id)
+    chat_id = str(message.chat.id)
+
+    # Check if the token is provided
+    try:
+        _, token = message.text.split()
+    except ValueError:
+        await message.answer("Invalid format. Use /register <token>")
+        return
+
+    # Validate the token
+    if token != REG_MASTER_TOKEN:
+        await message.answer("Invalid token.")
+        return
+
+    # Send a request to the API to create a new master
+    api_response = await fetch_data(
+        f"{API_URL}masters",
+        method="POST",
+        json={"user_id": user_id, "chat_id": chat_id}
+    )
+
+    # Handle API response
+    if api_response and "error" in api_response:
+        await message.answer(f"Error registering master: {api_response['error']}")
+    else:
+        await message.answer(MESSAGES["master_activated"])
 
 @dp.message()
 async def handle_message(message: types.Message):
     """
-    Handles incoming messages from users.
-
-    Args:
-        message (types.Message): The incoming message object.
+    Handles incoming messages from masters.
     """
+    # Ignore commands (messages starting with '/')
+    if message.text.startswith('/'):
+        return
+
     author_id = str(message.from_user.id)
     text = message.text
 

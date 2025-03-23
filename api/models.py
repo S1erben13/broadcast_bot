@@ -3,6 +3,12 @@ from sqlalchemy.orm import Mapped, relationship
 from database import Base
 from enum import Enum as PyEnum
 
+class Message(Base):
+    __tablename__ = 'message'
+
+    id: Mapped[int] = Column(Integer, primary_key=True, autoincrement=True)
+    author_id: Mapped[str] = Column(String)
+    text: Mapped[str] = Column(Text)
 
 class Role(PyEnum):
     MASTER = "master"

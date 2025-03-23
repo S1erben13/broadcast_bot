@@ -1,4 +1,4 @@
-# Anonymous Message Broadcasting System
+# Broadcasting System
 
 This project is a system for broadcasting anonymous messages via Telegram bots. It consists of four main services: a PostgreSQL database, a FastAPI backend, and two Telegram bots (Master Bot and Servant Bot) built using the `aiogram` framework.
 

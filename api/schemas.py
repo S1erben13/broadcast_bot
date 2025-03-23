@@ -19,7 +19,3 @@ class MasterCreate(BaseModel):
 
 class MasterUpdate(BaseModel):
     active: bool | None = None
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str

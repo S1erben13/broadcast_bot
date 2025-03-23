@@ -1,10 +1,8 @@
 import logging
-import httpx
-from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from config import ERROR_MESSAGES
 from models import Message, User, Master
 from schemas import MessageCreate, UserCreate, UserUpdate, MasterCreate, MasterUpdate
@@ -24,11 +22,6 @@ async def get_async_session() -> AsyncSession:
     async with async_session_factory() as session:
         yield session
 
-async def is_followed(chat_id):
-    response = await get_users()
-    users = response['users']
-    return any(chat_id == user['chat_id'] for user in users)
-
 @app.on_event("startup")
 async def startup():
     """
@@ -38,6 +31,93 @@ async def startup():
         await conn.run_sync(Base.metadata.create_all)
     logging.info("Database tables created successfully.")
 
+async def create_entity(session, entity, entity_create, error_messages):
+    """
+    Helper function to create a new entity in the database.
+
+    Args:
+        session (AsyncSession): Database session.
+        entity: The SQLAlchemy model class.
+        entity_create: The Pydantic schema for entity creation.
+        error_messages (dict): Custom error messages.
+
+    Returns:
+        dict: The created entity data.
+
+    Raises:
+        HTTPException: If an error occurs during entity creation.
+    """
+    try:
+        db_entity = entity(**entity_create.dict())
+        session.add(db_entity)
+        await session.commit()
+        await session.refresh(db_entity)
+        return db_entity
+    except IntegrityError as e:
+        await session.rollback()
+        if "chat_id" in str(e):
+            raise HTTPException(status_code=400, detail=error_messages["chat_id_exists"])
+        elif "user_id" in str(e):
+            raise HTTPException(status_code=400, detail=error_messages["user_id_exists"])
+        else:
+            raise HTTPException(status_code=500, detail=error_messages["database_integrity_error"])
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=error_messages["internal_server_error"])
+
+async def update_entity(session, entity, identifier, update_data, identifier_name="id"):
+    """
+    Helper function to update an entity in the database.
+
+    Args:
+        session (AsyncSession): Database session.
+        entity: The SQLAlchemy model class.
+        identifier: The identifier value (e.g., chat_id, user_id).
+        update_data: The Pydantic schema for entity update.
+        identifier_name (str): The name of the identifier field.
+
+    Returns:
+        dict: A status message.
+
+    Raises:
+        HTTPException: If an error occurs during the update.
+    """
+    try:
+        await session.execute(
+            update(entity)
+            .where(getattr(entity, identifier_name) == identifier)
+            .values(**update_data.dict(exclude_unset=True))
+        )
+        await session.commit()
+        return {"status": f"{entity.__name__} updated"}
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+async def get_entity(session, entity, identifier, identifier_name="id"):
+    """
+    Helper function to retrieve an entity from the database.
+
+    Args:
+        session (AsyncSession): Database session.
+        entity: The SQLAlchemy model class.
+        identifier: The identifier value (e.g., chat_id, user_id).
+        identifier_name (str): The name of the identifier field.
+
+    Returns:
+        dict: The entity's data.
+
+    Raises:
+        HTTPException: If the entity is not found or an error occurs.
+    """
+    try:
+        result = await session.execute(select(entity).where(getattr(entity, identifier_name) == identifier))
+        db_entity = result.scalars().first()
+        if not db_entity:
+            raise HTTPException(status_code=404, detail=f"{entity.__name__} not found")
+        return db_entity
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/messages")
 async def create_message(
@@ -45,7 +125,7 @@ async def create_message(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Creates a new message and sends it to the servant in the background.
+    Creates a new message.
 
     Args:
         message (MessageCreate): The message data.
@@ -57,22 +137,12 @@ async def create_message(
     Raises:
         HTTPException: If an error occurs during message creation.
     """
-    try:
-        db_message = Message(author_id=message.author_id, text=message.text)
-        session.add(db_message)
-        await session.commit()
-        await session.refresh(db_message)
-
-        return {
-            "id": db_message.id,
-            "author_id": db_message.author_id,
-            "text": db_message.text,
-        }
-
-    except Exception as e:
-        await session.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-
+    db_message = await create_entity(session, Message, message, ERROR_MESSAGES)
+    return {
+        "id": db_message.id,
+        "author_id": db_message.author_id,
+        "text": db_message.text,
+    }
 
 @app.post("/users")
 async def create_user(
@@ -92,26 +162,12 @@ async def create_user(
     Raises:
         HTTPException: If a user with the same chat_id already exists or another error occurs.
     """
-    try:
-        db_user = User(user_id=user.user_id, chat_id=user.chat_id)
-        session.add(db_user)
-        await session.commit()
-        await session.refresh(db_user)
-
-        return {
-            "id": db_user.id,
-            "user_id": db_user.user_id,
-            "chat_id": db_user.chat_id,
-        }
-    except IntegrityError as e:
-        await session.rollback()
-        if "user_chat_id_key" in str(e):
-            raise HTTPException(status_code=400, detail=ERROR_MESSAGES["chat_id_exists"])
-        else:
-            raise HTTPException(status_code=500, detail=ERROR_MESSAGES["database_integrity_error"])
-    except Exception as e:
-        await session.rollback()
-        raise HTTPException(status_code=500, detail=ERROR_MESSAGES["internal_server_error"])
+    db_user = await create_entity(session, User, user, ERROR_MESSAGES)
+    return {
+        "id": db_user.id,
+        "user_id": db_user.user_id,
+        "chat_id": db_user.chat_id,
+    }
 
 @app.patch("/users/{chat_id}")
 async def update_user(
@@ -133,17 +189,7 @@ async def update_user(
     Raises:
         HTTPException: If an error occurs during the update.
     """
-    try:
-        await session.execute(
-            update(User)
-            .where(User.chat_id == chat_id)
-            .values(**update_data.dict(exclude_unset=True))
-        )
-        await session.commit()
-        return {"status": "User updated"}
-    except Exception as e:
-        await session.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+    return await update_entity(session, User, chat_id, update_data, "chat_id")
 
 @app.get("/users/{chat_id}")
 async def get_user(
@@ -163,19 +209,13 @@ async def get_user(
     Raises:
         HTTPException: If the user is not found or an error occurs.
     """
-    try:
-        result = await session.execute(select(User).where(User.chat_id == chat_id))
-        user = result.scalars().first()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        return {
-            "id": user.id,
-            "user_id": user.user_id,
-            "chat_id": user.chat_id,
-            "followed": user.followed,
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    user = await get_entity(session, User, chat_id, "chat_id")
+    return {
+        "id": user.id,
+        "user_id": user.user_id,
+        "chat_id": user.chat_id,
+        "followed": user.followed,
+    }
 
 @app.get("/messages")
 async def get_messages(
@@ -209,6 +249,15 @@ async def get_messages(
 
 @app.get("/users")
 async def get_users():
+    """
+    Retrieves all users.
+
+    Returns:
+        dict: A list of users.
+
+    Raises:
+        HTTPException: If an error occurs while fetching users.
+    """
     async with async_session_factory() as session:
         try:
             query = select(User)
@@ -221,16 +270,18 @@ async def get_users():
             ]
             return {"users": user_list}
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Ошибка при получении пользователей: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error fetching users: {str(e)}")
 
 @app.get("/masters")
 async def get_masters():
     """
+    Retrieves all active masters.
+
     Returns:
-        dict: A list of all masters.
+        dict: A list of masters.
 
     Raises:
-        HTTPException: If an error occurs while fetching messages.
+        HTTPException: If an error occurs while fetching masters.
     """
     async with async_session_factory() as session:
         try:
@@ -239,8 +290,8 @@ async def get_masters():
             masters = result.scalars().all()
 
             masters_list = [
-                {"id": message.id, "user_id": message.user_id, "chat_id": message.chat_id}
-                for message in masters
+                {"id": master.id, "user_id": master.user_id, "chat_id": master.chat_id}
+                for master in masters
             ]
             return {"masters": masters_list}
         except Exception as e:
@@ -252,7 +303,7 @@ async def create_master(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Creates a new Master.
+    Creates a new master.
 
     Args:
         master (MasterCreate): The master data.
@@ -262,30 +313,14 @@ async def create_master(
         dict: The created master data.
 
     Raises:
-        HTTPException: If a user with the same chat_id already exists or another error occurs.
+        HTTPException: If a master with the same user_id or chat_id already exists or another error occurs.
     """
-    try:
-        db_master = Master(user_id=master.user_id, chat_id=master.chat_id)
-        session.add(db_master)
-        await session.commit()
-        await session.refresh(db_master)
-
-        return {
-            "id": db_master.id,
-            "user_id": db_master.user_id,
-            "chat_id": db_master.user_id,
-        }
-    except IntegrityError as e:
-        await session.rollback()
-        if "master_user_id_key" in str(e):
-            raise HTTPException(status_code=400, detail=ERROR_MESSAGES["user_id_exists"])
-        elif "master_chat_id_key" in str(e):
-            raise HTTPException(status_code=400, detail=ERROR_MESSAGES["chat_id_exists"])
-        else:
-            raise HTTPException(status_code=500, detail=ERROR_MESSAGES["database_integrity_error"])
-    except Exception as e:
-        await session.rollback()
-        raise HTTPException(status_code=500, detail=ERROR_MESSAGES["internal_server_error"])
+    db_master = await create_entity(session, Master, master, ERROR_MESSAGES)
+    return {
+        "id": db_master.id,
+        "user_id": db_master.user_id,
+        "chat_id": db_master.chat_id,
+    }
 
 @app.get("/masters/{user_id}")
 async def get_master(
@@ -293,7 +328,7 @@ async def get_master(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Retrieves a masters by their user ID.
+    Retrieves a master by their user ID.
 
     Args:
         user_id (str): The master's user ID.
@@ -305,18 +340,12 @@ async def get_master(
     Raises:
         HTTPException: If the master is not found or an error occurs.
     """
-    try:
-        result = await session.execute(select(Master).where(Master.user_id == user_id and Master.active == True))
-        master = result.scalars().first()
-        if not master:
-            raise HTTPException(status_code=404, detail="Master not found")
-        return {
-            "id": master.id,
-            "user_id": master.user_id,
-            "chat_id": master.chat_id,
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    master = await get_entity(session, Master, user_id, "user_id")
+    return {
+        "id": master.id,
+        "user_id": master.user_id,
+        "chat_id": master.chat_id,
+    }
 
 @app.patch("/masters/{user_id}")
 async def update_master(
@@ -328,7 +357,7 @@ async def update_master(
     Updates a master's data.
 
     Args:
-        user_id (str): The user's ID.
+        user_id (str): The master's user ID.
         update_data (MasterUpdate): The data to update.
         session (AsyncSession): Database session.
 
@@ -338,18 +367,7 @@ async def update_master(
     Raises:
         HTTPException: If an error occurs during the update.
     """
-    try:
-        await session.execute(
-            update(Master)
-            .where(Master.user_id == user_id)
-            .values(**update_data.dict(exclude_unset=True))
-        )
-        await session.commit()
-        return {"status": "Master updated"}
-    except Exception as e:
-        await session.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-
+    return await update_entity(session, Master, user_id, update_data, "user_id")
 
 if __name__ == "__main__":
     import uvicorn

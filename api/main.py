@@ -5,8 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from config import ERROR_MESSAGES
 from models import Message, User, Master, Project
-from schemas import MessageCreate, UserCreate, UserUpdate, MasterCreate, MasterUpdate, ProjectCreate, ProjectUpdate, \
-    ProjectDelete
+from schemas import MessageCreate, UserCreate, UserUpdate, MasterCreate, MasterUpdate, ProjectCreate, ProjectUpdate
 from database import async_session_factory, Base, async_engine
 
 app = FastAPI()

@@ -1,5 +1,7 @@
 import logging
-from fastapi import FastAPI, HTTPException, Depends, Header
+from fastapi import FastAPI, HTTPException, Depends, Header, Request
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -385,10 +387,16 @@ async def update_master(
     """
     return await update_entity(session, Master, user_id, update_data, "user_id")
 
+@app.exception_handler(RequestValidationError)
+async def hide_header_error(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=422,
+        content={"detail": "Invalid request data"},  # Общее сообщение без деталей
+    )
 
 async def verify_secret_key(secret_key: str = Header(..., alias="X-Secret-Key")):
     if secret_key != SECRET_KEY:
-        raise HTTPException(status_code=403, detail="Invalid secret key")
+        raise HTTPException(status_code=403, detail="Forbidden")
     return True
 
 @app.get("/projects")

@@ -82,39 +82,35 @@ async def get_followers() -> List[Dict[str, Any]]:
 
 
 async def start_bot(tokens: tuple):
-    bot_token = tokens[0]
-    servant_reg_token = tokens[1]
+    bot_token, servant_reg_token = tokens
     bot = Bot(token=bot_token)
     dp = Dispatcher()
 
     async def check_for_new_messages():
-        """
-        Continuously checks for new messages and sends them to followers.
-        Handles potential errors gracefully and includes a sleep timer for rate limiting.
-        """
-        while True:
-            try:
-                followers = await get_followers()
-                for user in followers:
-                    if not user.get("is_active", False):
-                        continue
-                    # Передаем last_message_id, если он есть, иначе 0
-                    last_message_id = user.get("last_message_id", 0)
-                    messages = await get_new_messages(last_message_id)
-                    for message in messages:
-                        try:
-                            await bot.send_message(user["chat_id"], message["text"])
-                            # Обновляем last_message_id только после успешной отправки сообщения
-                            if await update_user(user["chat_id"], message["id"]):
-                                logger.info(f"Updated last_message_id for user {user['chat_id']} to {message['id']}")
-                            else:
-                                logger.error(f"Failed to update last_message_id for user {user['chat_id']}")
-                        except Exception as e:
-                            logger.error(f"Error sending message to {user['chat_id']}: {e}")
-                await asyncio.sleep(CHECK_MSGS_RATE)
-            except Exception as e:
-                logger.exception(f"Error in check_for_new_messages: {e}")  # Log the full traceback
-                await asyncio.sleep(CHECK_MSGS_RATE)
+        """Проверяет новые сообщения и рассылает их подписчикам."""
+        try:
+            followers = await get_followers()
+            for user in followers:
+                if not user.get("is_active", False):
+                    continue
+                last_message_id = user.get("last_message_id", 0)
+                messages = await get_new_messages(last_message_id)
+                for message in messages:
+                    try:
+                        await bot.send_message(user["chat_id"], message["text"])
+                        if not await update_user(user["chat_id"], message["id"]):
+                            logger.error(f"Failed to update last_message_id for user {user['chat_id']}")
+                    except Exception as e:
+                        logger.error(f"Error sending message to {user['chat_id']}: {e}")
+        except Exception as e:
+            logger.exception(f"Error in check_for_new_messages: {e}")
+        finally:
+            # Планируем следующую проверку через CHECK_MSGS_RATE секунд
+            await asyncio.sleep(CHECK_MSGS_RATE)
+            asyncio.create_task(check_for_new_messages())
+
+    # Запускаем фоновую задачу при старте бота
+    asyncio.create_task(check_for_new_messages())
 
     async def handle_user(chat_id: str, user_id: str, action: str, token: str = None) -> str:
         """

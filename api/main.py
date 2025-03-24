@@ -391,6 +391,23 @@ async def verify_secret_key(secret_key: str = Header(..., alias="X-Secret-Key"))
         raise HTTPException(status_code=403, detail="Invalid secret key")
     return True
 
+@app.get("/projects")
+async def get_users(
+        _ = Depends(verify_secret_key)
+):
+    async with async_session_factory() as session:
+        try:
+            query = select(Project)
+            result = await session.execute(query)
+            projects = result.scalars().all()
+
+            project_list = [
+                {"id": project.id, "master_reg_token": project.master_reg_token, "servant_reg_token": project.servant_reg_token, "is_active" : project.is_active}
+                for project in projects
+            ]
+            return {"projects": project_list}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error fetching projects: {str(e)}")
 
 @app.post("/projects")
 async def create_project(

@@ -97,7 +97,7 @@ async def check_for_new_messages():
         try:
             followers = await get_followers()
             for user in followers:
-                if not user.get("followed", False):
+                if not user.get("active", False):
                     continue
                 # Передаем last_message_id, если он есть, иначе 0
                 last_message_id = user.get("last_message_id", 0)
@@ -153,14 +153,14 @@ async def handle_user(chat_id: str, user_id: str, action: str, token: str = None
 
     # Handle follow/unfollow for existing users
     if action == "follow":
-        if not data.get("followed", False):
-            await fetch_data(f"{API_BASE_URL}/users/{chat_id}", method="PATCH", json={"followed": True})
+        if not data.get("is_active", False):
+            await fetch_data(f"{API_BASE_URL}/users/{chat_id}", method="PATCH", json={"is_active": True})
             return MESSAGES["subscribed"]
         else:
             return MESSAGES["already_subscribed"]
     elif action == "unfollow":
-        if data.get("followed", False):
-            await fetch_data(f"{API_BASE_URL}/users/{chat_id}", method="PATCH", json={"followed": False})
+        if data.get("is_active", False):
+            await fetch_data(f"{API_BASE_URL}/users/{chat_id}", method="PATCH", json={"is_active": False})
             return MESSAGES["unsubscribed"]
         else:
             return MESSAGES["already_unsubscribed"]

@@ -24,6 +24,7 @@ MESSAGES = {
     "master_already_activated" : "Master exists",
     "master_already_deactivated" : "Master does not exists",
     "handle_error" : "Handle error",
+    "command_error" : "Command does not exist",
 }
 
 # HTTP request timeout

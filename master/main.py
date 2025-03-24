@@ -118,6 +118,7 @@ async def handle_message(message: types.Message):
     """
     # Ignore commands (messages starting with '/')
     if message.text.startswith('/'):
+        await message.answer(MESSAGES["command_error"])
         return
 
     author_id = str(message.from_user.id)

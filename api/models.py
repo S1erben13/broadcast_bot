@@ -9,7 +9,7 @@ class Message(Base):
 
     id: Mapped[int] = Column(Integer, primary_key=True, autoincrement=True)
     author_id: Mapped[str] = Column(String)
-    project_id: Mapped[str] = Column(Integer)
+    project_id: Mapped[int] = Column(Integer)
     text: Mapped[str] = Column(Text)
 
 
@@ -19,6 +19,7 @@ class User(Base):
     id: Mapped[int] = Column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[str] = Column(String)
     chat_id: Mapped[str] = Column(String, unique=True)
+    project_id: Mapped[int] = Column(Integer)
     last_message_id: Mapped[str] = Column(Integer)
     is_active: Mapped[bool] = Column(Boolean, default=True)
 
@@ -29,7 +30,8 @@ class Master(Base):
     id: Mapped[int] = Column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[str] = Column(String, unique=True)
     chat_id: Mapped[str] = Column(String, unique=True)
-    is_active: Mapped[str] = Column(Boolean, default=True)
+    project_id: Mapped[int] = Column(Integer)
+    is_active: Mapped[bool] = Column(Boolean, default=True)
 
 
 class Project(Base):
@@ -40,4 +42,4 @@ class Project(Base):
     servant_token: Mapped[str] = Column(String, unique=True)
     master_reg_token: Mapped[str] = Column(String, unique=True)
     servant_reg_token: Mapped[str] = Column(String, unique=True)
-    is_active: Mapped[str] = Column(Boolean, default=True)
+    is_active: Mapped[bool] = Column(Boolean, default=True)

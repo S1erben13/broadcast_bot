@@ -177,6 +177,7 @@ async def create_user(
         "id": db_user.id,
         "user_id": db_user.user_id,
         "chat_id": db_user.chat_id,
+        "project_id": db_user.project_id,
     }
 
 
@@ -226,6 +227,7 @@ async def get_user(
         "id": user.id,
         "user_id": user.user_id,
         "chat_id": user.chat_id,
+        "project_id": user.project_id,
         "is_active": user.is_active,
     }
 
@@ -275,9 +277,12 @@ async def get_messages(
 
 
 @app.get("/users")
-async def get_users():
+async def get_users(project_id: int = None):
     """
-    Retrieves all users.
+    Retrieves users.
+
+    Args:
+        project_id (int): If provided, filters users by project ID.
 
     Returns:
         dict: A list of users.
@@ -287,7 +292,11 @@ async def get_users():
     """
     async with async_session_factory() as session:
         try:
-            query = select(User)
+            query = select(User).where(User.is_active == True)
+
+            if project_id is not None:
+                query = query.where(User.project_id == project_id)
+
             result = await session.execute(query)
             users = result.scalars().all()
 
@@ -302,7 +311,7 @@ async def get_users():
 
 
 @app.get("/masters")
-async def get_masters():
+async def get_masters(project_id: int = None):
     """
     Retrieves all active masters.
 
@@ -315,6 +324,9 @@ async def get_masters():
     async with async_session_factory() as session:
         try:
             query = select(Master).where(Master.is_active == True)
+            if project_id is not None:
+                query = query.where(User.project_id == project_id)
+
             result = await session.execute(query)
             masters = result.scalars().all()
 
@@ -350,6 +362,7 @@ async def create_master(
         "id": db_master.id,
         "user_id": db_master.user_id,
         "chat_id": db_master.chat_id,
+        "project_id": db_master.project_id,
     }
 
 

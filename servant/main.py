@@ -71,14 +71,14 @@ async def update_user(chat_id: str, last_message_id: int) -> bool:
     return response.get("status") == "User updated"
 
 
-async def get_followers() -> List[Dict[str, Any]]:
+async def get_followers(project_id) -> List[Dict[str, Any]]:
     """
     Retrieves a list of followers from the API.
 
     Returns:
         List[Dict[str, Any]]: A list of follower data.  Returns an empty list if there's an API error.
     """
-    data = await fetch_data(f"{API_BASE_URL}/users")
+    data = await fetch_data(f"{API_BASE_URL}/users?project_id={project_id}")
     return data.get("users", [])
 
 
@@ -90,10 +90,8 @@ async def start_bot(tokens: tuple):
     async def check_for_new_messages():
         """Проверяет новые сообщения и рассылает их подписчикам."""
         try:
-            followers = await get_followers()
+            followers = await get_followers(project_id=bot_id)
             for user in followers:
-                if not user.get("is_active", False):
-                    continue
                 last_message_id = user.get("last_message_id", 0)
                 messages = await get_new_messages(last_message_id, bot_id)
                 print('messages:', messages, 'bot_id:', bot_id)
@@ -114,7 +112,7 @@ async def start_bot(tokens: tuple):
     # Запускаем фоновую задачу при старте бота
     asyncio.create_task(check_for_new_messages())
 
-    async def handle_user(chat_id: str, user_id: str, action: str, token: str = None) -> str:
+    async def handle_user(chat_id: str, user_id: str, action: str, project_id: int, token: str = None) -> str:
         """
         Handles user follow/unfollow requests.
         Validates the token only on the first interaction (subscription).
@@ -143,7 +141,7 @@ async def start_bot(tokens: tuple):
             await fetch_data(
                 f"{API_BASE_URL}/users",
                 method="POST",
-                json={"user_id": user_id, "chat_id": chat_id, "last_message_id": last_message_id}
+                json={"user_id": user_id, "chat_id": chat_id, "last_message_id": last_message_id, "project_id": project_id}
             )
             return MESSAGES["subscribed"] if action == "follow" else MESSAGES["unsubscribed"]
 
@@ -184,7 +182,7 @@ async def start_bot(tokens: tuple):
             token = None
 
         # Pass the token to handle_user
-        response = await handle_user(str(message.chat.id), str(message.from_user.id), "follow", token)
+        response = await handle_user(str(message.chat.id), str(message.from_user.id), "follow", bot_id, token)
         await message.answer(response)
 
 
@@ -192,7 +190,7 @@ async def start_bot(tokens: tuple):
     async def cmd_unfollow(message: types.Message):
         """Handles the /unfollow command."""
         # Unfollow does not require a token
-        response = await handle_user(str(message.chat.id), str(message.from_user.id), "unfollow")
+        response = await handle_user(str(message.chat.id), str(message.from_user.id), "unfollow", bot_id)
         await message.answer(response)
 
     await dp.start_polling(bot)

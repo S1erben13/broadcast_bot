@@ -103,7 +103,7 @@ async def start_bot(tokens: tuple):
         api_response = await fetch_data(
             f"{API_URL}masters",
             method="POST",
-            json={"user_id": user_id, "chat_id": chat_id}
+            json={"user_id": user_id, "chat_id": chat_id, "project_id": bot_id}
         )
 
         # Handle API response

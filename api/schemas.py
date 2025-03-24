@@ -9,6 +9,7 @@ class MessageCreate(BaseModel):
 class UserCreate(BaseModel):
     user_id: str
     chat_id: str
+    project_id: int
 
 class UserUpdate(BaseModel):
     is_active: bool | None = None
@@ -17,6 +18,7 @@ class UserUpdate(BaseModel):
 class MasterCreate(BaseModel):
     user_id: str
     chat_id: str
+    project_id: int
 
 class MasterUpdate(BaseModel):
     is_active: bool | None = None

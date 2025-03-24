@@ -1,9 +1,9 @@
 import logging
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Header
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from config import ERROR_MESSAGES
+from config import ERROR_MESSAGES, SECRET_KEY
 from models import Message, User, Master, Project
 from schemas import MessageCreate, UserCreate, UserUpdate, MasterCreate, MasterUpdate, ProjectCreate, ProjectUpdate
 from database import async_session_factory, Base, async_engine
@@ -11,6 +11,7 @@ from database import async_session_factory, Base, async_engine
 app = FastAPI()
 
 logging.basicConfig(level=logging.INFO)
+
 
 async def get_async_session() -> AsyncSession:
     """
@@ -22,6 +23,7 @@ async def get_async_session() -> AsyncSession:
     async with async_session_factory() as session:
         yield session
 
+
 @app.on_event("startup")
 async def startup():
     """
@@ -30,6 +32,7 @@ async def startup():
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     logging.info("Database tables created successfully.")
+
 
 async def create_entity(session, entity, entity_create, error_messages):
     """
@@ -65,6 +68,7 @@ async def create_entity(session, entity, entity_create, error_messages):
         await session.rollback()
         raise HTTPException(status_code=500, detail=error_messages["internal_server_error"])
 
+
 async def update_entity(session, entity, identifier, update_data, identifier_name="id"):
     """
     Helper function to update an entity in the database.
@@ -94,6 +98,7 @@ async def update_entity(session, entity, identifier, update_data, identifier_nam
         await session.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
+
 async def get_entity(session, entity, identifier, identifier_name="id"):
     """
     Helper function to retrieve an entity from the database.
@@ -119,10 +124,11 @@ async def get_entity(session, entity, identifier, identifier_name="id"):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.post("/messages")
 async def create_message(
-    message: MessageCreate,
-    session: AsyncSession = Depends(get_async_session),
+        message: MessageCreate,
+        session: AsyncSession = Depends(get_async_session),
 ):
     """
     Creates a new message.
@@ -144,10 +150,11 @@ async def create_message(
         "text": db_message.text,
     }
 
+
 @app.post("/users")
 async def create_user(
-    user: UserCreate,
-    session: AsyncSession = Depends(get_async_session),
+        user: UserCreate,
+        session: AsyncSession = Depends(get_async_session),
 ):
     """
     Creates a new user.
@@ -169,11 +176,12 @@ async def create_user(
         "chat_id": db_user.chat_id,
     }
 
+
 @app.patch("/users/{chat_id}")
 async def update_user(
-    chat_id: str,
-    update_data: UserUpdate,
-    session: AsyncSession = Depends(get_async_session),
+        chat_id: str,
+        update_data: UserUpdate,
+        session: AsyncSession = Depends(get_async_session),
 ):
     """
     Updates a user's data.
@@ -191,10 +199,11 @@ async def update_user(
     """
     return await update_entity(session, User, chat_id, update_data, "chat_id")
 
+
 @app.get("/users/{chat_id}")
 async def get_user(
-    chat_id: str,
-    session: AsyncSession = Depends(get_async_session),
+        chat_id: str,
+        session: AsyncSession = Depends(get_async_session),
 ):
     """
     Retrieves a user by their chat ID.
@@ -217,9 +226,10 @@ async def get_user(
         "is_active": user.is_active,
     }
 
+
 @app.get("/messages")
 async def get_messages(
-    last_message_id: int = 0,
+        last_message_id: int = 0,
 ):
     """
     Retrieves messages created after a specific message ID.
@@ -247,6 +257,7 @@ async def get_messages(
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error fetching messages: {str(e)}")
 
+
 @app.get("/users")
 async def get_users():
     """
@@ -265,12 +276,14 @@ async def get_users():
             users = result.scalars().all()
 
             user_list = [
-                {"id": user.id, "user_id": user.user_id, "chat_id": user.chat_id, "is_active": user.is_active, "last_message_id": user.last_message_id}
+                {"id": user.id, "user_id": user.user_id, "chat_id": user.chat_id, "is_active": user.is_active,
+                 "last_message_id": user.last_message_id}
                 for user in users
             ]
             return {"users": user_list}
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error fetching users: {str(e)}")
+
 
 @app.get("/masters")
 async def get_masters():
@@ -297,10 +310,11 @@ async def get_masters():
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error fetching masters: {str(e)}")
 
+
 @app.post("/masters")
 async def create_master(
-    master: MasterCreate,
-    session: AsyncSession = Depends(get_async_session),
+        master: MasterCreate,
+        session: AsyncSession = Depends(get_async_session),
 ):
     """
     Creates a new master.
@@ -322,10 +336,11 @@ async def create_master(
         "chat_id": db_master.chat_id,
     }
 
+
 @app.get("/masters/{user_id}")
 async def get_master(
-    user_id: str,
-    session: AsyncSession = Depends(get_async_session),
+        user_id: str,
+        session: AsyncSession = Depends(get_async_session),
 ):
     """
     Retrieves a master by their user ID.
@@ -347,11 +362,12 @@ async def get_master(
         "chat_id": master.chat_id,
     }
 
+
 @app.patch("/masters/{user_id}")
 async def update_master(
-    user_id: str,
-    update_data: MasterUpdate,
-    session: AsyncSession = Depends(get_async_session),
+        user_id: str,
+        update_data: MasterUpdate,
+        session: AsyncSession = Depends(get_async_session),
 ):
     """
     Updates a master's data.
@@ -369,28 +385,38 @@ async def update_master(
     """
     return await update_entity(session, Master, user_id, update_data, "user_id")
 
+
+async def verify_secret_key(secret_key: str = Header(..., alias="X-Secret-Key")):
+    if secret_key != SECRET_KEY:
+        raise HTTPException(status_code=403, detail="Invalid secret key")
+    return True
+
+
 @app.post("/projects")
 async def create_project(
-    project: ProjectCreate,
-    session: AsyncSession = Depends(get_async_session),
+        project: ProjectCreate,
+        _ = Depends(verify_secret_key),
+        session: AsyncSession = Depends(get_async_session),
 ):
     db_project = await create_entity(session, Project, project, ERROR_MESSAGES)
-    return {
-        "id": db_project.id
-    }
+    return {"id": db_project.id}
+
 
 @app.patch("/projects/{project_id}")
 async def update_project(
-    project_id: int,
-    update_data: ProjectUpdate,
-    session: AsyncSession = Depends(get_async_session),
+        project_id: int,
+        update_data: ProjectUpdate,
+        _ = Depends(verify_secret_key),
+        session: AsyncSession = Depends(get_async_session),
 ):
     return await update_entity(session, Project, project_id, update_data, "project_id")
 
+
 @app.delete("/projects/{project_id}")
 async def delete_project(
-    project_id: int,
-    session: AsyncSession = Depends(get_async_session),
+        project_id: int,
+        _ = Depends(verify_secret_key),
+        session: AsyncSession = Depends(get_async_session),
 ):
     result = await session.execute(select(Project).where(Project.id == project_id))
     project = result.scalar_one_or_none()

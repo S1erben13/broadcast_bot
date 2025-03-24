@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+SECRET_KEY = os.getenv("SECRET_KEY")
+
 postgres_user = os.getenv("POSTGRES_USER")
 postgres_password = os.getenv("POSTGRES_PASSWORD")
 postgres_db = os.getenv("POSTGRES_DB")

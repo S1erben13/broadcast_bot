@@ -145,7 +145,7 @@ async def start_bot(tokens: tuple):
 
 
 async def main():
-    await asyncio.gather(*[start_bot(token) for token in TOKENS])
+    await asyncio.gather(*[start_bot(tokens) for tokens in TOKENS])
 
 if __name__ == "__main__":
     asyncio.run(main())

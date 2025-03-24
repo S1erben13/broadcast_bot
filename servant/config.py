@@ -19,10 +19,12 @@ def get_tokens():
         headers={'X-Secret-Key': SECRET_KEY}
     )
     data = response.json()
-    first_bot = data['projects'][0]
-    return first_bot['servant_token'], first_bot['servant_reg_token']
+    tokens = [project['servant_token'] for project in data['projects']]
+    reg_tokens = [project['servant_reg_token'] for project in data['projects']]
+    bots_quantity = range(len(tokens))
+    return [(tokens[i], reg_tokens[i]) for i in bots_quantity]
 
-TOKEN, REG_SERVANT_TOKEN = get_tokens()
+TOKENS = get_tokens()
 
 MESSAGES: Messages = {
     "welcome": "Добро пожаловать! Выберите действие:",
@@ -40,7 +42,4 @@ BUTTONS: Buttons = {
     "follow": "/follow",
     "unfollow": "/unfollow",
 }
-
-if not TOKEN:
-    raise ValueError("SERVANT_TOKEN environment variable is not set.")
 

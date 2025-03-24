@@ -9,7 +9,7 @@ class Message(Base):
 
     id: Mapped[int] = Column(Integer, primary_key=True, autoincrement=True)
     author_id: Mapped[str] = Column(String)
-    project_id: Mapped[str] = Column(Integer, default=1, unique=True)
+    project_id: Mapped[str] = Column(Integer, default=1)
     text: Mapped[str] = Column(Text)
 
 

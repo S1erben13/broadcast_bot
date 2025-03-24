@@ -219,7 +219,7 @@ async def get_user(
 
 @app.get("/messages")
 async def get_messages(
-    last_message_id: int,
+    last_message_id: int = 0,
 ):
     """
     Retrieves messages created after a specific message ID.

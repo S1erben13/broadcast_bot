@@ -4,8 +4,9 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from config import ERROR_MESSAGES
-from models import Message, User, Master
-from schemas import MessageCreate, UserCreate, UserUpdate, MasterCreate, MasterUpdate
+from models import Message, User, Master, Project
+from schemas import MessageCreate, UserCreate, UserUpdate, MasterCreate, MasterUpdate, ProjectCreate, ProjectUpdate, \
+    ProjectDelete
 from database import async_session_factory, Base, async_engine
 
 app = FastAPI()
@@ -368,6 +369,37 @@ async def update_master(
         HTTPException: If an error occurs during the update.
     """
     return await update_entity(session, Master, user_id, update_data, "user_id")
+
+@app.post("/projects")
+async def create_project(
+    project: ProjectCreate,
+    session: AsyncSession = Depends(get_async_session),
+):
+    db_project = await create_entity(session, Project, project, ERROR_MESSAGES)
+    return {
+        "id": db_project.id
+    }
+
+@app.patch("/projects/{project_id}")
+async def update_project(
+    project_id: int,
+    update_data: ProjectUpdate,
+    session: AsyncSession = Depends(get_async_session),
+):
+    return await update_entity(session, Project, project_id, update_data, "project_id")
+
+@app.delete("/projects/{project_id}")
+async def delete_project(
+    project_id: int,
+    session: AsyncSession = Depends(get_async_session),
+):
+    result = await session.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    project.is_active = False
+    await session.commit()
+
 
 if __name__ == "__main__":
     import uvicorn

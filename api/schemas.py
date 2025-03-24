@@ -29,6 +29,3 @@ class ProjectCreate(BaseModel):
 class ProjectUpdate(BaseModel):
     master_reg_token: str
     servant_reg_token: str
-
-class ProjectDelete(BaseModel):
-    is_active: bool

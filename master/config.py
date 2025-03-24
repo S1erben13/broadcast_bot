@@ -17,10 +17,11 @@ def get_tokens():
         headers={'X-Secret-Key': SECRET_KEY}
     )
     data = response.json()
-    first_bot = data['projects'][0]
-    return first_bot['master_token'], first_bot['master_reg_token']
+    tokens = [project['master_token'] for project in data['projects']]
+    reg_tokens = [project['master_reg_token'] for project in data['projects']]
+    return tokens, reg_tokens
 
-TOKEN, MASTER_REG_TOKEN = get_tokens()
+TOKENS, REG_TOKENS = get_tokens()
 
 # Messages for user responses
 MESSAGES = {

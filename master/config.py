@@ -9,7 +9,7 @@ TOKEN = os.getenv('MASTER_TOKEN')
 if not TOKEN:
     raise ValueError("MASTER_TOKEN environment variable is not set.")
 
-REG_MASTER_TOKEN = os.getenv('REG_MASTER_TOKEN')
+MASTER_REG_TOKEN = os.getenv('MASTER_REG_TOKEN')
 
 # API endpoint for sending messages
 API_URL = 'http://api:8000/'

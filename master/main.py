@@ -7,7 +7,7 @@ from aiogram.enums import ParseMode
 from aiogram.client.bot import DefaultBotProperties
 from aiogram.filters import Command
 
-from config import TOKEN, API_URL, MESSAGES, HTTP_TIMEOUT, REG_MASTER_TOKEN
+from config import TOKEN, API_URL, MESSAGES, HTTP_TIMEOUT, MASTER_REG_TOKEN
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -94,7 +94,7 @@ async def register_master(message: types.Message):
         return
 
     # Validate the token
-    if token != REG_MASTER_TOKEN:
+    if token != MASTER_REG_TOKEN:
         await message.answer("Invalid token.")
         return
 

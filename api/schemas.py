@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 
 
 class MessageCreate(BaseModel):
@@ -19,3 +19,16 @@ class MasterCreate(BaseModel):
 
 class MasterUpdate(BaseModel):
     active: bool | None = None
+
+class ProjectCreate(BaseModel):
+    master_token: str
+    servant_token: str
+    master_reg_token: str
+    servant_reg_token: str
+
+class ProjectUpdate(BaseModel):
+    master_reg_token: str
+    servant_reg_token: str
+
+class ProjectDelete(BaseModel):
+    is_active: bool

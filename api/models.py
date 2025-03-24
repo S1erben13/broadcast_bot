@@ -29,3 +29,14 @@ class Master(Base):
     user_id: Mapped[str] = Column(String, unique=True)
     chat_id: Mapped[str] = Column(String, unique=True)
     active: Mapped[str] = Column(Boolean, default=True)
+
+
+class Project(Base):
+    __tablename__ = 'project'
+
+    id: Mapped[int] = Column(Integer, primary_key=True, autoincrement=True)
+    master_token: Mapped[str] = Column(String, unique=True)
+    servant_token: Mapped[str] = Column(String, unique=True)
+    master_reg_token: Mapped[str] = Column(String, unique=True)
+    servant_reg_token: Mapped[str] = Column(String, unique=True)
+    is_active: Mapped[str] = Column(Boolean, default=True)

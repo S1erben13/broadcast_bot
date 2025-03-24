@@ -214,7 +214,7 @@ async def get_user(
         "id": user.id,
         "user_id": user.user_id,
         "chat_id": user.chat_id,
-        "followed": user.followed,
+        "is_active": user.is_active,
     }
 
 @app.get("/messages")
@@ -265,7 +265,7 @@ async def get_users():
             users = result.scalars().all()
 
             user_list = [
-                {"id": user.id, "user_id": user.user_id, "chat_id": user.chat_id, "followed": user.followed, "last_message_id": user.last_message_id}
+                {"id": user.id, "user_id": user.user_id, "chat_id": user.chat_id, "is_active": user.is_active, "last_message_id": user.last_message_id}
                 for user in users
             ]
             return {"users": user_list}
@@ -285,7 +285,7 @@ async def get_masters():
     """
     async with async_session_factory() as session:
         try:
-            query = select(Master).where(Master.active == True)
+            query = select(Master).where(Master.is_active == True)
             result = await session.execute(query)
             masters = result.scalars().all()
 

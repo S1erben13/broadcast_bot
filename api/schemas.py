@@ -10,7 +10,7 @@ class UserCreate(BaseModel):
     chat_id: str
 
 class UserUpdate(BaseModel):
-    followed: bool | None = None
+    is_active: bool | None = None
     last_message_id: int | None = None
 
 class MasterCreate(BaseModel):
@@ -18,7 +18,7 @@ class MasterCreate(BaseModel):
     chat_id: str
 
 class MasterUpdate(BaseModel):
-    active: bool | None = None
+    is_active: bool | None = None
 
 class ProjectCreate(BaseModel):
     master_token: str

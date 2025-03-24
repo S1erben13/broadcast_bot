@@ -1,18 +1,26 @@
 import os
+
+import requests
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
 
-# Telegram bot token
-TOKEN = os.getenv('MASTER_TOKEN')
-if not TOKEN:
-    raise ValueError("MASTER_TOKEN environment variable is not set.")
-
-MASTER_REG_TOKEN = os.getenv('MASTER_REG_TOKEN')
-
 # API endpoint for sending messages
 API_URL = 'http://api:8000/'
+
+SECRET_KEY = os.getenv('SECRET_KEY')
+
+def get_tokens():
+    response = requests.get(
+        url=API_URL + '/projects',
+        headers={'X-Secret-Key': SECRET_KEY}
+    )
+    data = response.json()
+    first_bot = data['projects'][0]
+    return first_bot['master_token'], first_bot['master_reg_token']
+
+TOKEN, MASTER_REG_TOKEN = get_tokens()
 
 # Messages for user responses
 MESSAGES = {

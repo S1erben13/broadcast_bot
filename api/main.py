@@ -410,7 +410,7 @@ async def get_users(
             projects = result.scalars().all()
 
             project_list = [
-                {"id": project.id, "master_reg_token": project.master_reg_token, "servant_reg_token": project.servant_reg_token, "is_active" : project.is_active}
+                {"id": project.id, "master_token": project.master_token, "servant_token": project.servant_token, "master_reg_token": project.master_reg_token, "servant_reg_token": project.servant_reg_token, "is_active" : project.is_active}
                 for project in projects
             ]
             return {"projects": project_list}

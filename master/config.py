@@ -17,10 +17,8 @@ def get_tokens():
         headers={'X-Secret-Key': SECRET_KEY}
     )
     data = response.json()
-    tokens = [project['master_token'] for project in data['projects']]
-    reg_tokens = [project['master_reg_token'] for project in data['projects']]
-    bots_quantity = range(len(tokens))
-    return [(tokens[i], reg_tokens[i]) for i in bots_quantity]
+    projects = [p for p in data['projects'] if p['is_active']]
+    return [(p['id'], p['master_token'], p['master_reg_token']) for p in projects]
 
 TOKENS = get_tokens()
 

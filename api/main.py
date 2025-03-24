@@ -252,7 +252,7 @@ async def get_messages(
             messages = result.scalars().all()
 
             messages_list = [
-                {"id": message.id, "author_id": message.author_id, "text": message.text}
+                {"id": message.id, "author_id": message.author_id, "project_id": message.project_id, "text": message.text}
                 for message in messages
             ]
             return {"messages": messages_list}

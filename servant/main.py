@@ -82,7 +82,7 @@ async def get_followers() -> List[Dict[str, Any]]:
 
 
 async def start_bot(tokens: tuple):
-    bot_token, servant_reg_token = tokens
+    bot_id, bot_token, servant_reg_token = tokens
     bot = Bot(token=bot_token)
     dp = Dispatcher()
 

@@ -75,8 +75,7 @@ async def send_message_to_api(author_id: str, text: str) -> Optional[Dict[str, A
     return await fetch_data(f"{API_URL}messages", method="POST", json={"author_id": author_id, "text": text})
 
 async def start_bot(tokens: tuple):
-    bot_token = tokens[0]
-    master_reg_token = tokens[1]
+    bot_id, bot_token, master_reg_token = tokens
     bot = Bot(token=bot_token)
     dp = Dispatcher()
 

@@ -61,7 +61,7 @@ async def is_master(user_id: int) -> bool:
     return any(int(user_id) == int(master.get("user_id")) for master in masters)
 
 
-async def send_message_to_api(author_id: str, text: str) -> Optional[Dict[str, Any]]:
+async def send_message_to_api(author_id: str, project_id: int, text: str) -> Optional[Dict[str, Any]]:
     """
     Sends a message to the API.
 
@@ -72,7 +72,7 @@ async def send_message_to_api(author_id: str, text: str) -> Optional[Dict[str, A
     Returns:
         Optional[Dict[str, Any]]: The API response as a dictionary, or None if an error occurs.
     """
-    return await fetch_data(f"{API_URL}messages", method="POST", json={"author_id": author_id, "text": text})
+    return await fetch_data(f"{API_URL}messages", method="POST", json={"author_id": author_id, "project_id": project_id, "text": text})
 
 async def start_bot(tokens: tuple):
     bot_id, bot_token, master_reg_token = tokens
@@ -131,7 +131,7 @@ async def start_bot(tokens: tuple):
             return
 
         # Send the message to the API
-        api_response = await send_message_to_api(author_id, text)
+        api_response = await send_message_to_api(author_id, bot_id, text)
         if api_response and "error" in api_response:
             response_message = MESSAGES["message_send_error"]
         else:

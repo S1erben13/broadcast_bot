@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 class MessageCreate(BaseModel):
     author_id: str
+    project_id: int
     text: str
 
 class UserCreate(BaseModel):

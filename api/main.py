@@ -149,6 +149,7 @@ async def create_message(
     return {
         "id": db_message.id,
         "author_id": db_message.author_id,
+        "project_id": db_message.project_id,
         "text": db_message.text,
     }
 
@@ -232,12 +233,14 @@ async def get_user(
 @app.get("/messages")
 async def get_messages(
         last_message_id: int = 0,
+        project_id: int = None
 ):
     """
-    Retrieves messages created after a specific message ID.
+    Retrieves messages created after a specific message ID, optionally filtered by project.
 
     Args:
         last_message_id (int): The ID of the last message the user has seen.
+        project_id (int): If provided, filters messages by project ID.
 
     Returns:
         dict: A list of new messages.
@@ -247,12 +250,23 @@ async def get_messages(
     """
     async with async_session_factory() as session:
         try:
+            # Базовый запрос
             query = select(Message).where(Message.id > last_message_id)
+
+            # Добавляем фильтр по project_id если он указан
+            if project_id is not None:
+                query = query.where(Message.project_id == project_id)
+
             result = await session.execute(query)
             messages = result.scalars().all()
 
             messages_list = [
-                {"id": message.id, "author_id": message.author_id, "project_id": message.project_id, "text": message.text}
+                {
+                    "id": message.id,
+                    "author_id": message.author_id,
+                    "project_id": message.project_id,
+                    "text": message.text
+                }
                 for message in messages
             ]
             return {"messages": messages_list}

@@ -34,18 +34,19 @@ async def fetch_data(url: str, method: str = "GET", json: Dict[str, Any] = None)
             logger.error(f"API error ({url}): {e}")
             return {"error": str(e)}
 
-async def get_new_messages(last_message_id: int | None) -> List[Dict[str, Any]]:
+async def get_new_messages(last_message_id: int | None, project_id: int | None) -> List[Dict[str, Any]]:
     """
     Fetches new messages from the API.
 
     Args:
         last_message_id (int | None): The ID of the last message the user has seen.
+        project_id (int | None): The ID of the project.
 
     Returns:
         List[Dict[str, Any]]: A list of new messages.
     """
     last_message_id = last_message_id if last_message_id is not None else 0
-    data = await fetch_data(f"{API_BASE_URL}/messages?last_message_id={last_message_id}")
+    data = await fetch_data(f"{API_BASE_URL}/messages?last_message_id={last_message_id}&project_id={project_id}")
     if "error" in data:
         logger.error(f"Failed to fetch new messages: {data['error']}")
         return []
@@ -94,7 +95,8 @@ async def start_bot(tokens: tuple):
                 if not user.get("is_active", False):
                     continue
                 last_message_id = user.get("last_message_id", 0)
-                messages = await get_new_messages(last_message_id)
+                messages = await get_new_messages(last_message_id, bot_id)
+                print('messages:', messages, 'bot_id:', bot_id)
                 for message in messages:
                     try:
                         await bot.send_message(user["chat_id"], message["text"])

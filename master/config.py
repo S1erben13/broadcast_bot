@@ -19,9 +19,10 @@ def get_tokens():
     data = response.json()
     tokens = [project['master_token'] for project in data['projects']]
     reg_tokens = [project['master_reg_token'] for project in data['projects']]
-    return tokens, reg_tokens
+    bots_quantity = range(len(tokens))
+    return [(tokens[i], reg_tokens[i]) for i in bots_quantity]
 
-TOKENS, REG_TOKENS = get_tokens()
+TOKENS = get_tokens()
 
 # Messages for user responses
 MESSAGES = {

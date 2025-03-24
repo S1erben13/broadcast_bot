@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import Dict, Any, List, Optional
 
@@ -7,16 +8,11 @@ from aiogram.enums import ParseMode
 from aiogram.client.bot import DefaultBotProperties
 from aiogram.filters import Command
 
-from config import TOKEN, API_URL, MESSAGES, HTTP_TIMEOUT, MASTER_REG_TOKEN
+from config import API_URL, MESSAGES, HTTP_TIMEOUT, TOKENS
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Initialize bot and dispatcher
-bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-dp = Dispatcher()
-
 
 async def fetch_data(url: str, method: str = "GET", json: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
@@ -78,77 +74,78 @@ async def send_message_to_api(author_id: str, text: str) -> Optional[Dict[str, A
     """
     return await fetch_data(f"{API_URL}messages", method="POST", json={"author_id": author_id, "text": text})
 
-@dp.message(Command("register"))
-async def register_master(message: types.Message):
-    """
-    Handles the /register command to register a new master.
-    """
-    user_id = str(message.from_user.id)
-    chat_id = str(message.chat.id)
+async def start_bot(tokens: tuple):
+    bot_token = tokens[0]
+    master_reg_token = tokens[1]
+    bot = Bot(token=bot_token)
+    dp = Dispatcher()
 
-    # Check if the token is provided
-    try:
-        _, token = message.text.split()
-    except ValueError:
-        await message.answer("Invalid format. Use /register <token>")
-        return
+    @dp.message(Command("register"))
+    async def register_master(message: types.Message):
+        """
+        Handles the /register command to register a new master.
+        """
+        user_id = str(message.from_user.id)
+        chat_id = str(message.chat.id)
 
-    # Validate the token
-    if token != MASTER_REG_TOKEN:
-        await message.answer("Invalid token.")
-        return
+        # Check if the token is provided
+        try:
+            _, token = message.text.split()
+        except ValueError:
+            await message.answer("Invalid format. Use /register <token>")
+            return
 
-    # Send a request to the API to create a new master
-    api_response = await fetch_data(
-        f"{API_URL}masters",
-        method="POST",
-        json={"user_id": user_id, "chat_id": chat_id}
-    )
+        # Validate the token
+        if token != master_reg_token:
+            await message.answer("Invalid token.")
+            return
 
-    # Handle API response
-    if api_response and "error" in api_response:
-        await message.answer(f"Error registering master: {api_response['error']}")
-    else:
-        await message.answer(MESSAGES["master_activated"])
+        # Send a request to the API to create a new master
+        api_response = await fetch_data(
+            f"{API_URL}masters",
+            method="POST",
+            json={"user_id": user_id, "chat_id": chat_id}
+        )
 
-@dp.message()
-async def handle_message(message: types.Message):
-    """
-    Handles incoming messages from masters.
-    """
-    # Ignore commands (messages starting with '/')
-    if message.text.startswith('/'):
-        await message.answer(MESSAGES["command_error"])
-        return
+        # Handle API response
+        if api_response and "error" in api_response:
+            await message.answer(f"Error registering master: {api_response['error']}")
+        else:
+            await message.answer(MESSAGES["master_activated"])
 
-    author_id = str(message.from_user.id)
-    text = message.text
+    @dp.message()
+    async def handle_message(message: types.Message):
+        """
+        Handles incoming messages from masters.
+        """
+        # Ignore commands (messages starting with '/')
+        if message.text.startswith('/'):
+            await message.answer(MESSAGES["command_error"])
+            return
 
-    # Check if the user is a master
-    if not await is_master(int(author_id)):
-        await message.answer(MESSAGES["not_master"])
-        return
+        author_id = str(message.from_user.id)
+        text = message.text
 
-    # Send the message to the API
-    api_response = await send_message_to_api(author_id, text)
-    if api_response and "error" in api_response:
-        response_message = MESSAGES["message_send_error"]
-    else:
-        response_message = MESSAGES["message_sent"]
+        # Check if the user is a master
+        if not await is_master(int(author_id)):
+            await message.answer(MESSAGES["not_master"])
+            return
 
-    # Send the response back to the user
-    await message.answer(response_message)
+        # Send the message to the API
+        api_response = await send_message_to_api(author_id, text)
+        if api_response and "error" in api_response:
+            response_message = MESSAGES["message_send_error"]
+        else:
+            response_message = MESSAGES["message_sent"]
 
+        # Send the response back to the user
+        await message.answer(response_message)
 
-async def main():
-    """
-    Starts the bot and begins polling for updates.
-    """
     await dp.start_polling(bot)
 
 
-if __name__ == '__main__':
-    import asyncio
+async def main():
+    await asyncio.gather(*[start_bot(token) for token in TOKENS])
 
-    # Run the bot
+if __name__ == "__main__":
     asyncio.run(main())

@@ -97,7 +97,7 @@ async def check_for_new_messages():
         try:
             followers = await get_followers()
             for user in followers:
-                if not user.get("active", False):
+                if not user.get("is_active", False):
                     continue
                 # Передаем last_message_id, если он есть, иначе 0
                 last_message_id = user.get("last_message_id", 0)

@@ -60,9 +60,9 @@ async def create_entity(session, entity, entity_create, error_messages):
         return db_entity
     except IntegrityError as e:
         await session.rollback()
-        if "chat_id" in str(e):
+        if "telegram_chat_id" in str(e):
             raise HTTPException(status_code=400, detail=error_messages["chat_id_exists"])
-        elif "user_id" in str(e):
+        elif "telegram_user_id" in str(e):
             raise HTTPException(status_code=400, detail=error_messages["user_id_exists"])
         else:
             raise HTTPException(status_code=500, detail=error_messages["database_integrity_error"])
@@ -78,7 +78,7 @@ async def update_entity(session, entity, identifier, update_data, identifier_nam
     Args:
         session (AsyncSession): Database session.
         entity: The SQLAlchemy model class.
-        identifier: The identifier value (e.g., chat_id, user_id).
+        identifier: The identifier value (e.g., telegram_chat_id, telegram_user_id).
         update_data: The Pydantic schema for entity update.
         identifier_name (str): The name of the identifier field.
 
@@ -108,7 +108,7 @@ async def get_entity(session, entity, identifier, identifier_name="id"):
     Args:
         session (AsyncSession): Database session.
         entity: The SQLAlchemy model class.
-        identifier: The identifier value (e.g., chat_id, user_id).
+        identifier: The identifier value (e.g., telegram_chat_id, telegram_user_id).
         identifier_name (str): The name of the identifier field.
 
     Returns:
@@ -170,20 +170,20 @@ async def create_user(
         dict: The created user data.
 
     Raises:
-        HTTPException: If a user with the same chat_id already exists or another error occurs.
+        HTTPException: If a user with the same telegram_chat_id already exists or another error occurs.
     """
     db_user = await create_entity(session, User, user, ERROR_MESSAGES)
     return {
         "id": db_user.id,
-        "user_id": db_user.user_id,
-        "chat_id": db_user.chat_id,
+        "telegram_user_id": db_user.telegram_user_id,
+        "telegram_chat_id": db_user.telegram_chat_id,
         "project_id": db_user.project_id,
     }
 
 
-@app.patch("/users/{chat_id}")
+@app.patch("/users/{telegram_chat_id}")
 async def update_user(
-        chat_id: str,
+        telegram_chat_id: str,
         update_data: UserUpdate,
         session: AsyncSession = Depends(get_async_session),
 ):
@@ -191,7 +191,7 @@ async def update_user(
     Updates a user's data.
 
     Args:
-        chat_id (str): The user's chat ID.
+        telegram_chat_id (str): The user's chat ID.
         update_data (UserUpdate): The data to update.
         session (AsyncSession): Database session.
 
@@ -201,19 +201,19 @@ async def update_user(
     Raises:
         HTTPException: If an error occurs during the update.
     """
-    return await update_entity(session, User, chat_id, update_data, "chat_id")
+    return await update_entity(session, User, telegram_chat_id, update_data, "telegram_chat_id")
 
 
-@app.get("/users/{chat_id}")
+@app.get("/users/{telegram_chat_id}")
 async def get_user(
-        chat_id: str,
+        telegram_chat_id: str,
         session: AsyncSession = Depends(get_async_session),
 ):
     """
     Retrieves a user by their chat ID.
 
     Args:
-        chat_id (str): The user's chat ID.
+        telegram_chat_id (str): The user's chat ID.
         session (AsyncSession): Database session.
 
     Returns:
@@ -222,11 +222,11 @@ async def get_user(
     Raises:
         HTTPException: If the user is not found or an error occurs.
     """
-    user = await get_entity(session, User, chat_id, "chat_id")
+    user = await get_entity(session, User, telegram_chat_id, "telegram_chat_id")
     return {
         "id": user.id,
-        "user_id": user.user_id,
-        "chat_id": user.chat_id,
+        "telegram_user_id": user.telegram_user_id,
+        "telegram_chat_id": user.telegram_chat_id,
         "project_id": user.project_id,
         "is_active": user.is_active,
     }
@@ -301,7 +301,7 @@ async def get_users(project_id: int = None):
             users = result.scalars().all()
 
             user_list = [
-                {"id": user.id, "user_id": user.user_id, "chat_id": user.chat_id, "is_active": user.is_active,
+                {"id": user.id, "telegram_user_id": user.telegram_user_id, "telegram_chat_id": user.telegram_chat_id, "project_id": user.project_id, "is_active": user.is_active,
                  "last_message_id": user.last_message_id}
                 for user in users
             ]
@@ -331,7 +331,7 @@ async def get_masters(project_id: int = None):
             masters = result.scalars().all()
 
             masters_list = [
-                {"id": master.id, "user_id": master.user_id, "chat_id": master.chat_id}
+                {"id": master.id, "telegram_user_id": master.telegram_user_id, "telegram_chat_id": master.telegram_chat_id, "project_id": master.project_id}
                 for master in masters
             ]
             return {"masters": masters_list}
@@ -355,27 +355,27 @@ async def create_master(
         dict: The created master data.
 
     Raises:
-        HTTPException: If a master with the same user_id or chat_id already exists or another error occurs.
+        HTTPException: If a master with the same telegram_user_id or telegram_chat_id already exists or another error occurs.
     """
     db_master = await create_entity(session, Master, master, ERROR_MESSAGES)
     return {
         "id": db_master.id,
-        "user_id": db_master.user_id,
-        "chat_id": db_master.chat_id,
+        "telegram_user_id": db_master.telegram_user_id,
+        "telegram_chat_id": db_master.telegram_chat_id,
         "project_id": db_master.project_id,
     }
 
 
-@app.get("/masters/{user_id}")
+@app.get("/masters/{telegram_user_id}")
 async def get_master(
-        user_id: str,
+        telegram_user_id: str,
         session: AsyncSession = Depends(get_async_session),
 ):
     """
     Retrieves a master by their user ID.
 
     Args:
-        user_id (str): The master's user ID.
+        telegram_user_id (str): The master's user ID.
         session (AsyncSession): Database session.
 
     Returns:
@@ -384,17 +384,17 @@ async def get_master(
     Raises:
         HTTPException: If the master is not found or an error occurs.
     """
-    master = await get_entity(session, Master, user_id, "user_id")
+    master = await get_entity(session, Master, telegram_user_id, "telegram_user_id")
     return {
         "id": master.id,
-        "user_id": master.user_id,
-        "chat_id": master.chat_id,
+        "telegram_user_id": master.telegram_user_id,
+        "telegram_chat_id": master.telegram_chat_id,
     }
 
 
-@app.patch("/masters/{user_id}")
+@app.patch("/masters/{telegram_user_id}")
 async def update_master(
-        user_id: str,
+        telegram_user_id: str,
         update_data: MasterUpdate,
         session: AsyncSession = Depends(get_async_session),
 ):
@@ -402,7 +402,7 @@ async def update_master(
     Updates a master's data.
 
     Args:
-        user_id (str): The master's user ID.
+        telegram_user_id (str): The master's user ID.
         update_data (MasterUpdate): The data to update.
         session (AsyncSession): Database session.
 
@@ -412,7 +412,7 @@ async def update_master(
     Raises:
         HTTPException: If an error occurs during the update.
     """
-    return await update_entity(session, Master, user_id, update_data, "user_id")
+    return await update_entity(session, Master, telegram_user_id, update_data, "telegram_user_id")
 
 @app.exception_handler(RequestValidationError)
 async def hide_header_error(request: Request, exc: RequestValidationError):

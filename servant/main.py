@@ -56,18 +56,18 @@ async def get_new_messages(last_message_id: int | None, project_id: int | None) 
     return data["messages"]
 
 
-async def update_user(chat_id: str, last_message_id: int) -> bool:
+async def update_user(telegram_chat_id: str, last_message_id: int) -> bool:
     """
     Updates the last message ID for a user in the database.
 
     Args:
-        chat_id (str): The user's chat ID.
+        telegram_chat_id (str): The user's chat ID.
         last_message_id (int): The ID of the last message sent to the user.
 
     Returns:
         bool: True if the update was successful, False otherwise.
     """
-    response = await fetch_data(f"{API_BASE_URL}/users/{chat_id}", method="PATCH", json={"last_message_id": last_message_id})
+    response = await fetch_data(f"{API_BASE_URL}/users/{telegram_chat_id}", method="PATCH", json={"last_message_id": last_message_id})
     return response.get("status") == "User updated"
 
 
@@ -97,11 +97,11 @@ async def start_bot(tokens: tuple):
                 print('messages:', messages, 'bot_id:', bot_id)
                 for message in messages:
                     try:
-                        await bot.send_message(user["chat_id"], message["text"])
-                        if not await update_user(user["chat_id"], message["id"]):
-                            logger.error(f"Failed to update last_message_id for user {user['chat_id']}")
+                        await bot.send_message(user["telegram_chat_id"], message["text"])
+                        if not await update_user(user["telegram_chat_id"], message["id"]):
+                            logger.error(f"Failed to update last_message_id for user {user['telegram_chat_id']}")
                     except Exception as e:
-                        logger.error(f"Error sending message to {user['chat_id']}: {e}")
+                        logger.error(f"Error sending message to {user['telegram_chat_id']}: {e}")
         except Exception as e:
             logger.exception(f"Error in check_for_new_messages: {e}")
         finally:
@@ -112,14 +112,14 @@ async def start_bot(tokens: tuple):
     # Запускаем фоновую задачу при старте бота
     asyncio.create_task(check_for_new_messages())
 
-    async def handle_user(chat_id: str, user_id: str, action: str, project_id: int, token: str = None) -> str:
+    async def handle_user(telegram_chat_id: str, telegram_user_id: str, action: str, project_id: int, token: str = None) -> str:
         """
         Handles user follow/unfollow requests.
         Validates the token only on the first interaction (subscription).
 
         Args:
-            chat_id (str): The user's chat ID.
-            user_id (str): The user's ID.
+            telegram_chat_id (str): The user's chat ID.
+            telegram_user_id (str): The user's ID.
             action (str): Either "follow" or "unfollow".
             token (str): The registration token (required only for the first subscription).
 
@@ -127,7 +127,7 @@ async def start_bot(tokens: tuple):
             str: The appropriate message from MESSAGES based on the action and user status.
         """
         # Fetch user data from the API
-        data = await fetch_data(f"{API_BASE_URL}/users/{chat_id}", method="GET")
+        data = await fetch_data(f"{API_BASE_URL}/users/{telegram_chat_id}", method="GET")
 
         # If the user is not found, it's their first interaction
         if data.get("error"):
@@ -141,20 +141,20 @@ async def start_bot(tokens: tuple):
             await fetch_data(
                 f"{API_BASE_URL}/users",
                 method="POST",
-                json={"user_id": user_id, "chat_id": chat_id, "last_message_id": last_message_id, "project_id": project_id}
+                json={"telegram_user_id": telegram_user_id, "telegram_chat_id": telegram_chat_id, "last_message_id": last_message_id, "project_id": project_id}
             )
             return MESSAGES["subscribed"] if action == "follow" else MESSAGES["unsubscribed"]
 
         # Handle follow/unfollow for existing users
         if action == "follow":
             if not data.get("is_active", False):
-                await fetch_data(f"{API_BASE_URL}/users/{chat_id}", method="PATCH", json={"is_active": True})
+                await fetch_data(f"{API_BASE_URL}/users/{telegram_chat_id}", method="PATCH", json={"is_active": True})
                 return MESSAGES["subscribed"]
             else:
                 return MESSAGES["already_subscribed"]
         elif action == "unfollow":
             if data.get("is_active", False):
-                await fetch_data(f"{API_BASE_URL}/users/{chat_id}", method="PATCH", json={"is_active": False})
+                await fetch_data(f"{API_BASE_URL}/users/{telegram_chat_id}", method="PATCH", json={"is_active": False})
                 return MESSAGES["unsubscribed"]
             else:
                 return MESSAGES["already_unsubscribed"]

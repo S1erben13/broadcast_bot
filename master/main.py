@@ -47,18 +47,18 @@ async def get_masters() -> List[Dict[str, Any]]:
     return data.get("masters", [])
 
 
-async def is_master(user_id: int) -> bool:
+async def is_master(telegram_user_id: int) -> bool:
     """
     Checks if a user is a master.
 
     Args:
-        user_id (int): The ID of the user to check.
+        telegram_user_id (int): The ID of the user to check.
 
     Returns:
         bool: True if the user is a master, False otherwise.
     """
     masters = await get_masters()
-    return any(int(user_id) == int(master.get("user_id")) for master in masters)
+    return any(int(telegram_user_id) == int(master.get("telegram_user_id")) for master in masters)
 
 
 async def send_message_to_api(author_id: str, project_id: int, text: str) -> Optional[Dict[str, Any]]:
@@ -84,8 +84,8 @@ async def start_bot(tokens: tuple):
         """
         Handles the /register command to register a new master.
         """
-        user_id = str(message.from_user.id)
-        chat_id = str(message.chat.id)
+        telegram_user_id = str(message.from_user.id)
+        telegram_chat_id = str(message.chat.id)
 
         # Check if the token is provided
         try:
@@ -103,7 +103,7 @@ async def start_bot(tokens: tuple):
         api_response = await fetch_data(
             f"{API_URL}masters",
             method="POST",
-            json={"user_id": user_id, "chat_id": chat_id, "project_id": bot_id}
+            json={"telegram_user_id": telegram_user_id, "telegram_chat_id": telegram_chat_id, "project_id": bot_id}
         )
 
         # Handle API response

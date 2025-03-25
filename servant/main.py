@@ -56,7 +56,7 @@ async def get_new_messages(last_message_id: int | None, project_id: int | None) 
     return data["messages"]
 
 
-async def update_user(telegram_chat_id: str, last_message_id: int) -> bool:
+async def update_user(telegram_chat_id: str, last_message_id: int, project_id: int) -> bool:
     """
     Updates the last message ID for a user in the database.
 
@@ -67,7 +67,7 @@ async def update_user(telegram_chat_id: str, last_message_id: int) -> bool:
     Returns:
         bool: True if the update was successful, False otherwise.
     """
-    response = await fetch_data(f"{API_BASE_URL}/users/{telegram_chat_id}", method="PATCH", json={"last_message_id": last_message_id})
+    response = await fetch_data(f"{API_BASE_URL}/users/{telegram_chat_id}?project_id={project_id}", method="PATCH", json={"last_message_id": last_message_id})
     return response.get("status") == "User updated"
 
 
@@ -98,7 +98,7 @@ async def start_bot(tokens: tuple):
                 for message in messages:
                     try:
                         await bot.send_message(user["telegram_chat_id"], message["text"])
-                        if not await update_user(user["telegram_chat_id"], message["id"]):
+                        if not await update_user(user["telegram_chat_id"], message["id"], user["project_id"]):
                             logger.error(f"Failed to update last_message_id for user {user['telegram_chat_id']}")
                     except Exception as e:
                         logger.error(f"Error sending message to {user['telegram_chat_id']}: {e}")

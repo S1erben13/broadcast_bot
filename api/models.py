@@ -1,7 +1,6 @@
-from sqlalchemy import Column, Integer, String, Text, Boolean, ForeignKey, Enum, UniqueConstraint
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy import Column, Integer, String, Text, Boolean, UniqueConstraint
+from sqlalchemy.orm import Mapped
 from database import Base
-from enum import Enum as PyEnum
 
 
 class Message(Base):
@@ -18,20 +17,24 @@ class User(Base):
 
     id: Mapped[int] = Column(Integer, primary_key=True, autoincrement=True)
     telegram_user_id: Mapped[str] = Column(String)
-    telegram_chat_id: Mapped[str] = Column(String, unique=True)
+    telegram_chat_id: Mapped[str] = Column(String)
     project_id: Mapped[int] = Column(Integer)
     last_message_id: Mapped[str] = Column(Integer)
     is_active: Mapped[bool] = Column(Boolean, default=True)
+
+    __table_args__ = (UniqueConstraint('telegram_user_id', 'telegram_chat_id', 'project_id', name='_user_uc'),)
 
 
 class Master(Base):
     __tablename__ = 'master'
 
     id: Mapped[int] = Column(Integer, primary_key=True, autoincrement=True)
-    telegram_user_id: Mapped[str] = Column(String, unique=True)
-    telegram_chat_id: Mapped[str] = Column(String, unique=True)
+    telegram_user_id: Mapped[str] = Column(String)
+    telegram_chat_id: Mapped[str] = Column(String)
     project_id: Mapped[int] = Column(Integer)
     is_active: Mapped[bool] = Column(Boolean, default=True)
+
+    __table_args__ = (UniqueConstraint('telegram_user_id', 'telegram_chat_id', 'project_id', name='_master_uc'),)
 
 
 class Project(Base):
@@ -40,6 +43,6 @@ class Project(Base):
     id: Mapped[int] = Column(Integer, primary_key=True, autoincrement=True)
     master_token: Mapped[str] = Column(String, unique=True)
     servant_token: Mapped[str] = Column(String, unique=True)
-    master_reg_token: Mapped[str] = Column(String, unique=True)
-    servant_reg_token: Mapped[str] = Column(String, unique=True)
+    master_reg_token: Mapped[str] = Column(String)
+    servant_reg_token: Mapped[str] = Column(String)
     is_active: Mapped[bool] = Column(Boolean, default=True)

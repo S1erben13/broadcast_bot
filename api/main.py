@@ -100,6 +100,19 @@ async def update_entity(session, entity, identifier, update_data, identifier_nam
         await session.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
+async def update_entity_two_conditions(session, entity, identifier_1, identifier_2, update_data, identifier_1_name, identifier_2_name):
+    try:
+        await session.execute(
+            update(entity)
+            .where(getattr(entity, identifier_1_name) == identifier_1)
+            .where(getattr(entity, identifier_2_name) == identifier_2)
+            .values(**update_data.dict(exclude_unset=True))
+        )
+        await session.commit()
+        return {"status": f"{entity.__name__} updated"}
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 async def get_entity(session, entity, identifier, identifier_name="id"):
     """
@@ -184,6 +197,7 @@ async def create_user(
 @app.patch("/users/{telegram_chat_id}")
 async def update_user(
         telegram_chat_id: str,
+        project_id: int,
         update_data: UserUpdate,
         session: AsyncSession = Depends(get_async_session),
 ):
@@ -201,35 +215,27 @@ async def update_user(
     Raises:
         HTTPException: If an error occurs during the update.
     """
-    return await update_entity(session, User, telegram_chat_id, update_data, "telegram_chat_id")
+    return await update_entity_two_conditions(session, User, telegram_chat_id, project_id, update_data, "telegram_chat_id", "project_id")
 
 
 @app.get("/users/{telegram_chat_id}")
-async def get_user(session, telegram_chat_id, project_id):
+async def get_user(telegram_chat_id: str, project_id: int):
     """
     Retrieves a user from the database based on telegram_chat_id and project_id.
-
-    Args:
-        session (AsyncSession): Database session.
-        telegram_chat_id: The telegram_chat_id value.
-        project_id: The project_id value.
-
-    Returns:
-        The user's data or None if not found.
-
-    Raises:
-        HTTPException: If an error occurs during database interaction.
     """
-    try:
-        query = select(User).where(
-            User.telegram_chat_id == telegram_chat_id,
-            User.project_id == project_id
-        )
-        result = await session.execute(query)
-        user = result.scalars().first()
-        return user
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching user: {str(e)}")
+    async with async_session_factory() as session:  # Создаем сессию внутри функции
+        try:
+            query = select(User).where(
+                User.telegram_chat_id == telegram_chat_id,
+                User.project_id == project_id
+            )
+            result = await session.execute(query)
+            user = result.scalars().first()
+            return user
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error fetching user: {str(e)}")
+
+
 
 
 @app.get("/messages")
@@ -413,12 +419,12 @@ async def update_master(
     """
     return await update_entity(session, Master, telegram_user_id, update_data, "telegram_user_id")
 
-@app.exception_handler(RequestValidationError)
-async def hide_header_error(request: Request, exc: RequestValidationError):
-    return JSONResponse(
-        status_code=422,
-        content={"detail": "Invalid request data"},  # Общее сообщение без деталей
-    )
+# @app.exception_handler(RequestValidationError)
+# async def hide_header_error(request: Request, exc: RequestValidationError):
+#     return JSONResponse(
+#         status_code=422,
+#         content={"detail": "Invalid request data"},  # Общее сообщение без деталей
+#     )
 
 async def verify_secret_key(secret_key: str = Header(..., alias="X-Secret-Key")):
     if secret_key != SECRET_KEY:
@@ -426,7 +432,7 @@ async def verify_secret_key(secret_key: str = Header(..., alias="X-Secret-Key"))
     return True
 
 @app.get("/projects")
-async def get_users(
+async def get_projects(
         _ = Depends(verify_secret_key)
 ):
     async with async_session_factory() as session:

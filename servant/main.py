@@ -126,8 +126,9 @@ async def start_bot(tokens: tuple):
         Returns:
             str: The appropriate message from MESSAGES based on the action and user status.
         """
+        API_FOLLOWER_URL = f"{API_BASE_URL}/users/{telegram_chat_id}?project_id={project_id}"
         # Fetch user data from the API
-        data = await fetch_data(f"{API_BASE_URL}/users/{telegram_chat_id}?project_id={project_id}", method="GET")
+        data = await fetch_data(API_FOLLOWER_URL, method="GET")
 
         # If the user is not found, it's their first interaction
         if data.get("error"):
@@ -148,13 +149,13 @@ async def start_bot(tokens: tuple):
         # Handle follow/unfollow for existing users
         if action == "follow":
             if not data.get("is_active", False):
-                await fetch_data(f"{API_BASE_URL}/users/{telegram_chat_id}", method="PATCH", json={"is_active": True})
+                await fetch_data(API_FOLLOWER_URL, method="PATCH", json={"is_active": True})
                 return MESSAGES["subscribed"]
             else:
                 return MESSAGES["already_subscribed"]
         elif action == "unfollow":
             if data.get("is_active", False):
-                await fetch_data(f"{API_BASE_URL}/users/{telegram_chat_id}", method="PATCH", json={"is_active": False})
+                await fetch_data(API_FOLLOWER_URL, method="PATCH", json={"is_active": False})
                 return MESSAGES["unsubscribed"]
             else:
                 return MESSAGES["already_unsubscribed"]

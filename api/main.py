@@ -216,18 +216,20 @@ async def create_message(
 
 @app.get("/messages")
 async def get_messages(
-        last_message_id: int = 0,
-        project_id: int = None,
-        session: AsyncSession = Depends(get_async_session)
+    last_message_id: int = 0,
+    project_id: int = None,
+    session: AsyncSession = Depends(get_async_session)
 ):
-    """Retrieves messages after last_message_id, optionally filtered by project."""
+    """
+    Get messages with ID > last_message_id, optionally filtered by project.
+    Returns empty list if no new messages.
+    """
     try:
         query = select(Message).where(Message.id > last_message_id)
         if project_id is not None:
             query = query.where(Message.project_id == project_id)
 
-        result = await session.execute(query)
-        messages = result.scalars().all()
+        messages = (await session.execute(query)).scalars().all()
 
         return {
             "messages": [{

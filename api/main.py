@@ -205,31 +205,31 @@ async def update_user(
 
 
 @app.get("/users/{telegram_chat_id}")
-async def get_user(
-        telegram_chat_id: str,
-        session: AsyncSession = Depends(get_async_session),
-):
+async def get_user(session, telegram_chat_id, project_id):
     """
-    Retrieves a user by their chat ID.
+    Retrieves a user from the database based on telegram_chat_id and project_id.
 
     Args:
-        telegram_chat_id (str): The user's chat ID.
         session (AsyncSession): Database session.
+        telegram_chat_id: The telegram_chat_id value.
+        project_id: The project_id value.
 
     Returns:
-        dict: The user's data.
+        The user's data or None if not found.
 
     Raises:
-        HTTPException: If the user is not found or an error occurs.
+        HTTPException: If an error occurs during database interaction.
     """
-    user = await get_entity(session, User, telegram_chat_id, "telegram_chat_id")
-    return {
-        "id": user.id,
-        "telegram_user_id": user.telegram_user_id,
-        "telegram_chat_id": user.telegram_chat_id,
-        "project_id": user.project_id,
-        "is_active": user.is_active,
-    }
+    try:
+        query = select(User).where(
+            User.telegram_chat_id == telegram_chat_id,
+            User.project_id == project_id
+        )
+        result = await session.execute(query)
+        user = result.scalars().first()
+        return user
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching user: {str(e)}")
 
 
 @app.get("/messages")
@@ -301,8 +301,7 @@ async def get_users(project_id: int = None):
             users = result.scalars().all()
 
             user_list = [
-                {"id": user.id, "telegram_user_id": user.telegram_user_id, "telegram_chat_id": user.telegram_chat_id, "project_id": user.project_id, "is_active": user.is_active,
-                 "last_message_id": user.last_message_id}
+                {"id": user.id, "telegram_user_id": user.telegram_user_id, "telegram_chat_id": user.telegram_chat_id, "project_id": user.project_id, "last_message_id": user.last_message_id}
                 for user in users
             ]
             return {"users": user_list}

@@ -127,7 +127,7 @@ async def start_bot(tokens: tuple):
             str: The appropriate message from MESSAGES based on the action and user status.
         """
         # Fetch user data from the API
-        data = await fetch_data(f"{API_BASE_URL}/users/{telegram_chat_id}", method="GET")
+        data = await fetch_data(f"{API_BASE_URL}/users/{telegram_chat_id}?project_id={project_id}", method="GET")
 
         # If the user is not found, it's their first interaction
         if data.get("error"):

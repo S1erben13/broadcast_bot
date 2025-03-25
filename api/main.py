@@ -28,6 +28,13 @@ async def startup():
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     logging.info("Database tables created.")
+    # for hand test
+    try:
+        from init_test_bots import create_test_projects
+        await create_test_projects()
+        logging.info("Test bots initialized.")
+    except Exception:
+        logging.info("Test bots exists.")
 
 @app.exception_handler(RequestValidationError)
 async def hide_header_error(request: Request, exc: RequestValidationError):
@@ -379,6 +386,35 @@ async def get_masters(
 
 
 # Projects endpoints
+@app.get("/projects")
+async def get_projects(
+        _=Depends(verify_secret_key),
+        session: AsyncSession = Depends(get_async_session)
+):
+    """
+    Retrieve all projects (requires secret key)
+
+    Returns:
+        List of projects with their tokens and status
+    """
+    try:
+        projects = await session.execute(select(Project))
+        return {
+            "projects": [{
+                "id": p.id,
+                "master_token": p.master_token,
+                "servant_token": p.servant_token,
+                "master_reg_token": p.master_reg_token,
+                "servant_reg_token": p.servant_reg_token,
+                "is_active": p.is_active
+            } for p in projects.scalars()]
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Database error: {str(e)}"
+        )
+
 @app.post("/projects")
 async def create_project(
         project: ProjectCreate,

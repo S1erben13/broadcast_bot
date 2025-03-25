@@ -2,13 +2,13 @@ from pydantic import BaseModel
 
 
 class MessageCreate(BaseModel):
-    author_id: str
+    telegram_user_id: str
     project_id: int
     text: str
 
 class UserCreate(BaseModel):
-    user_id: str
-    chat_id: str
+    telegram_user_id: str
+    telegram_chat_id: str
     project_id: int
 
 class UserUpdate(BaseModel):
@@ -16,8 +16,8 @@ class UserUpdate(BaseModel):
     last_message_id: int | None = None
 
 class MasterCreate(BaseModel):
-    user_id: str
-    chat_id: str
+    telegram_user_id: str
+    telegram_chat_id: str
     project_id: int
 
 class MasterUpdate(BaseModel):

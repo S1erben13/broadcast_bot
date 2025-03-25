@@ -148,7 +148,7 @@ async def create_message(
     db_message = await create_entity(session, Message, message, ERROR_MESSAGES)
     return {
         "id": db_message.id,
-        "author_id": db_message.author_id,
+        "telegram_user_id": db_message.telegram_user_id,
         "project_id": db_message.project_id,
         "text": db_message.text,
     }
@@ -265,7 +265,7 @@ async def get_messages(
             messages_list = [
                 {
                     "id": message.id,
-                    "author_id": message.author_id,
+                    "telegram_user_id": message.telegram_user_id,
                     "project_id": message.project_id,
                     "text": message.text
                 }

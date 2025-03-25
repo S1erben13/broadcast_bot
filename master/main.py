@@ -61,18 +61,18 @@ async def is_master(telegram_user_id: int) -> bool:
     return any(int(telegram_user_id) == int(master.get("telegram_user_id")) for master in masters)
 
 
-async def send_message_to_api(author_id: str, project_id: int, text: str) -> Optional[Dict[str, Any]]:
+async def send_message_to_api(telegram_user_id: str, project_id: int, text: str) -> Optional[Dict[str, Any]]:
     """
     Sends a message to the API.
 
     Args:
-        author_id (str): The ID of the message author.
+        telegram_user_id (str): The ID of the message author.
         text (str): The text of the message.
 
     Returns:
         Optional[Dict[str, Any]]: The API response as a dictionary, or None if an error occurs.
     """
-    return await fetch_data(f"{API_URL}messages", method="POST", json={"author_id": author_id, "project_id": project_id, "text": text})
+    return await fetch_data(f"{API_URL}messages", method="POST", json={"telegram_user_id": telegram_user_id, "project_id": project_id, "text": text})
 
 async def start_bot(tokens: tuple):
     bot_id, bot_token, master_reg_token = tokens
@@ -122,16 +122,16 @@ async def start_bot(tokens: tuple):
             await message.answer(MESSAGES["command_error"])
             return
 
-        author_id = str(message.from_user.id)
+        telegram_user_id = str(message.from_user.id)
         text = message.text
 
         # Check if the user is a master
-        if not await is_master(int(author_id)):
+        if not await is_master(int(telegram_user_id)):
             await message.answer(MESSAGES["not_master"])
             return
 
         # Send the message to the API
-        api_response = await send_message_to_api(author_id, bot_id, text)
+        api_response = await send_message_to_api(telegram_user_id, bot_id, text)
         if api_response and "error" in api_response:
             response_message = MESSAGES["message_send_error"]
         else:

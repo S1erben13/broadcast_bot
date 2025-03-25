@@ -1,6 +1,6 @@
 import os
 from typing import Dict
-
+import requests
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -8,10 +8,21 @@ load_dotenv()
 Messages = Dict[str, str]
 Buttons = Dict[str, str]
 
-TOKEN: str = os.getenv("SERVANT_TOKEN")
-REG_SERVANT_TOKEN = os.getenv('REG_SERVANT_TOKEN')
 API_BASE_URL: str = os.getenv("API_BASE_URL", "http://api:8000")
 CHECK_MSGS_RATE = int(os.getenv("CHECK_MSGS_RATE", 60))
+
+SECRET_KEY = os.getenv('SECRET_KEY')
+
+def get_tokens():
+    response = requests.get(
+        url=API_BASE_URL + '/projects',
+        headers={'X-Secret-Key': SECRET_KEY}
+    )
+    data = response.json()
+    projects = [p for p in data['projects'] if p['is_active']]
+    return [(p['id'], p['servant_token'], p['servant_reg_token']) for p in projects]
+
+TOKENS = get_tokens()
 
 MESSAGES: Messages = {
     "welcome": "Добро пожаловать! Выберите действие:",
@@ -29,7 +40,4 @@ BUTTONS: Buttons = {
     "follow": "/follow",
     "unfollow": "/unfollow",
 }
-
-if not TOKEN:
-    raise ValueError("SERVANT_TOKEN environment variable is not set.")
 

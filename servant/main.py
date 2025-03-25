@@ -1,23 +1,16 @@
 import asyncio
 import logging
 from typing import List, Dict, Any
-
 import httpx
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
-from aiogram.enums import ParseMode
-from aiogram.client.bot import DefaultBotProperties
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
 
-from config import TOKEN, API_BASE_URL, BUTTONS, MESSAGES, CHECK_MSGS_RATE, REG_SERVANT_TOKEN
+from config import TOKENS, API_BASE_URL, BUTTONS, MESSAGES, CHECK_MSGS_RATE
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Initialize bot and dispatcher
-bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-dp = Dispatcher()
 
 
 async def fetch_data(url: str, method: str = "GET", json: Dict[str, Any] = None) -> Dict[str, Any]:
@@ -41,18 +34,19 @@ async def fetch_data(url: str, method: str = "GET", json: Dict[str, Any] = None)
             logger.error(f"API error ({url}): {e}")
             return {"error": str(e)}
 
-async def get_new_messages(last_message_id: int | None) -> List[Dict[str, Any]]:
+async def get_new_messages(last_message_id: int | None, project_id: int | None) -> List[Dict[str, Any]]:
     """
     Fetches new messages from the API.
 
     Args:
         last_message_id (int | None): The ID of the last message the user has seen.
+        project_id (int | None): The ID of the project.
 
     Returns:
         List[Dict[str, Any]]: A list of new messages.
     """
     last_message_id = last_message_id if last_message_id is not None else 0
-    data = await fetch_data(f"{API_BASE_URL}/messages?last_message_id={last_message_id}")
+    data = await fetch_data(f"{API_BASE_URL}/messages?last_message_id={last_message_id}&project_id={project_id}")
     if "error" in data:
         logger.error(f"Failed to fetch new messages: {data['error']}")
         return []
@@ -62,149 +56,148 @@ async def get_new_messages(last_message_id: int | None) -> List[Dict[str, Any]]:
     return data["messages"]
 
 
-async def update_user(chat_id: str, last_message_id: int) -> bool:
+async def update_user(telegram_chat_id: str, last_message_id: int, project_id: int) -> bool:
     """
     Updates the last message ID for a user in the database.
 
     Args:
-        chat_id (str): The user's chat ID.
+        telegram_chat_id (str): The user's chat ID.
         last_message_id (int): The ID of the last message sent to the user.
 
     Returns:
         bool: True if the update was successful, False otherwise.
     """
-    response = await fetch_data(f"{API_BASE_URL}/users/{chat_id}", method="PATCH", json={"last_message_id": last_message_id})
+    response = await fetch_data(f"{API_BASE_URL}/users/{telegram_chat_id}?project_id={project_id}", method="PATCH", json={"last_message_id": last_message_id})
     return response.get("status") == "User updated"
 
 
-async def get_followers() -> List[Dict[str, Any]]:
+async def get_followers(project_id) -> List[Dict[str, Any]]:
     """
     Retrieves a list of followers from the API.
 
     Returns:
         List[Dict[str, Any]]: A list of follower data.  Returns an empty list if there's an API error.
     """
-    data = await fetch_data(f"{API_BASE_URL}/users")
+    data = await fetch_data(f"{API_BASE_URL}/users?project_id={project_id}")
     return data.get("users", [])
 
 
-async def check_for_new_messages():
-    """
-    Continuously checks for new messages and sends them to followers.
-    Handles potential errors gracefully and includes a sleep timer for rate limiting.
-    """
-    while True:
+async def start_bot(tokens: tuple):
+    bot_id, bot_token, servant_reg_token = tokens
+    bot = Bot(token=bot_token)
+    dp = Dispatcher()
+
+    async def check_for_new_messages():
+        """Проверяет новые сообщения и рассылает их подписчикам."""
         try:
-            followers = await get_followers()
+            followers = await get_followers(project_id=bot_id)
             for user in followers:
-                if not user.get("followed", False):
-                    continue
-                # Передаем last_message_id, если он есть, иначе 0
                 last_message_id = user.get("last_message_id", 0)
-                messages = await get_new_messages(last_message_id)
+                messages = await get_new_messages(last_message_id, bot_id)
+                print('messages:', messages, 'bot_id:', bot_id)
                 for message in messages:
                     try:
-                        await bot.send_message(user["chat_id"], message["text"])
-                        # Обновляем last_message_id только после успешной отправки сообщения
-                        if await update_user(user["chat_id"], message["id"]):
-                            logger.info(f"Updated last_message_id for user {user['chat_id']} to {message['id']}")
-                        else:
-                            logger.error(f"Failed to update last_message_id for user {user['chat_id']}")
+                        await bot.send_message(user["telegram_chat_id"], message["text"])
+                        if not await update_user(user["telegram_chat_id"], message["id"], user["project_id"]):
+                            logger.error(f"Failed to update last_message_id for user {user['telegram_chat_id']}")
                     except Exception as e:
-                        logger.error(f"Error sending message to {user['chat_id']}: {e}")
-            await asyncio.sleep(CHECK_MSGS_RATE)
+                        logger.error(f"Error sending message to {user['telegram_chat_id']}: {e}")
         except Exception as e:
-            logger.exception(f"Error in check_for_new_messages: {e}")  # Log the full traceback
+            logger.exception(f"Error in check_for_new_messages: {e}")
+        finally:
+            # Планируем следующую проверку через CHECK_MSGS_RATE секунд
             await asyncio.sleep(CHECK_MSGS_RATE)
+            asyncio.create_task(check_for_new_messages())
 
-
-async def handle_user(chat_id: str, user_id: str, action: str, token: str = None) -> str:
-    """
-    Handles user follow/unfollow requests.
-    Validates the token only on the first interaction (subscription).
-
-    Args:
-        chat_id (str): The user's chat ID.
-        user_id (str): The user's ID.
-        action (str): Either "follow" or "unfollow".
-        token (str): The registration token (required only for the first subscription).
-
-    Returns:
-        str: The appropriate message from MESSAGES based on the action and user status.
-    """
-    # Fetch user data from the API
-    data = await fetch_data(f"{API_BASE_URL}/users/{chat_id}", method="GET")
-
-    # If the user is not found, it's their first interaction
-    if data.get("error"):
-        # Validate the token for the first subscription
-        if action == "follow" and token != REG_SERVANT_TOKEN:
-            return MESSAGES["invalid_token"]
-
-        # Create a new user entry
-        messages_data = await fetch_data(f"{API_BASE_URL}/messages")
-        last_message_id = messages_data["messages"][-1]["id"] if messages_data.get("messages") else 0
-        await fetch_data(
-            f"{API_BASE_URL}/users",
-            method="POST",
-            json={"user_id": user_id, "chat_id": chat_id, "last_message_id": last_message_id}
-        )
-        return MESSAGES["subscribed"] if action == "follow" else MESSAGES["unsubscribed"]
-
-    # Handle follow/unfollow for existing users
-    if action == "follow":
-        if not data.get("followed", False):
-            await fetch_data(f"{API_BASE_URL}/users/{chat_id}", method="PATCH", json={"followed": True})
-            return MESSAGES["subscribed"]
-        else:
-            return MESSAGES["already_subscribed"]
-    elif action == "unfollow":
-        if data.get("followed", False):
-            await fetch_data(f"{API_BASE_URL}/users/{chat_id}", method="PATCH", json={"followed": False})
-            return MESSAGES["unsubscribed"]
-        else:
-            return MESSAGES["already_unsubscribed"]
-    return MESSAGES["subscription_error"]
-
-
-@dp.message(Command("start"))
-async def cmd_start(message: types.Message):
-    """Handles the /start command."""
-    keyboard = ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text=BUTTONS["follow"]), KeyboardButton(text=BUTTONS["unfollow"])]],
-        resize_keyboard=True,
-        one_time_keyboard=True,
-    )
-    await message.answer(MESSAGES["welcome"], reply_markup=keyboard)
-
-
-@dp.message(Command("follow"))
-async def cmd_follow(message: types.Message):
-    """Handles the /follow command."""
-    # Extract the token from the message (if provided)
-    try:
-        _, token = message.text.split()
-    except ValueError:
-        token = None
-
-    # Pass the token to handle_user
-    response = await handle_user(str(message.chat.id), str(message.from_user.id), "follow", token)
-    await message.answer(response)
-
-
-@dp.message(Command("unfollow"))
-async def cmd_unfollow(message: types.Message):
-    """Handles the /unfollow command."""
-    # Unfollow does not require a token
-    response = await handle_user(str(message.chat.id), str(message.from_user.id), "unfollow")
-    await message.answer(response)
-
-
-async def main():
-    """Starts the bot and runs the message checker in the background."""
+    # Запускаем фоновую задачу при старте бота
     asyncio.create_task(check_for_new_messages())
+
+    async def handle_user(telegram_chat_id: str, telegram_user_id: str, action: str, project_id: int, token: str = None) -> str:
+        """
+        Handles user follow/unfollow requests.
+        Validates the token only on the first interaction (subscription).
+
+        Args:
+            telegram_chat_id (str): The user's chat ID.
+            telegram_user_id (str): The user's ID.
+            action (str): Either "follow" or "unfollow".
+            token (str): The registration token (required only for the first subscription).
+
+        Returns:
+            str: The appropriate message from MESSAGES based on the action and user status.
+        """
+        API_FOLLOWER_URL = f"{API_BASE_URL}/users/{telegram_chat_id}?project_id={project_id}"
+        # Fetch user data from the API
+        data = await fetch_data(API_FOLLOWER_URL, method="GET")
+
+        # If the user is not found, it's their first interaction
+        if data.get("error"):
+            # Validate the token for the first subscription
+            if action == "follow" and token != servant_reg_token:
+                return MESSAGES["invalid_token"]
+
+            # Create a new user entry
+            messages_data = await fetch_data(f"{API_BASE_URL}/messages")
+            last_message_id = messages_data["messages"][-1]["id"] if messages_data.get("messages") else 0
+            await fetch_data(
+                f"{API_BASE_URL}/users",
+                method="POST",
+                json={"telegram_user_id": telegram_user_id, "telegram_chat_id": telegram_chat_id, "last_message_id": last_message_id, "project_id": project_id}
+            )
+            return MESSAGES["subscribed"] if action == "follow" else MESSAGES["unsubscribed"]
+
+        # Handle follow/unfollow for existing users
+        if action == "follow":
+            if not data.get("is_active", False):
+                await fetch_data(API_FOLLOWER_URL, method="PATCH", json={"is_active": True})
+                return MESSAGES["subscribed"]
+            else:
+                return MESSAGES["already_subscribed"]
+        elif action == "unfollow":
+            if data.get("is_active", False):
+                await fetch_data(API_FOLLOWER_URL, method="PATCH", json={"is_active": False})
+                return MESSAGES["unsubscribed"]
+            else:
+                return MESSAGES["already_unsubscribed"]
+        return MESSAGES["subscription_error"]
+
+
+    @dp.message(Command("start"))
+    async def cmd_start(message: types.Message):
+        """Handles the /start command."""
+        keyboard = ReplyKeyboardMarkup(
+            keyboard=[[KeyboardButton(text=BUTTONS["follow"]), KeyboardButton(text=BUTTONS["unfollow"])]],
+            resize_keyboard=True,
+            one_time_keyboard=True,
+        )
+        await message.answer(MESSAGES["welcome"], reply_markup=keyboard)
+
+
+    @dp.message(Command("follow"))
+    async def cmd_follow(message: types.Message):
+        """Handles the /follow command."""
+        # Extract the token from the message (if provided)
+        try:
+            _, token = message.text.split()
+        except ValueError:
+            token = None
+
+        # Pass the token to handle_user
+        response = await handle_user(str(message.chat.id), str(message.from_user.id), "follow", bot_id, token)
+        await message.answer(response)
+
+
+    @dp.message(Command("unfollow"))
+    async def cmd_unfollow(message: types.Message):
+        """Handles the /unfollow command."""
+        # Unfollow does not require a token
+        response = await handle_user(str(message.chat.id), str(message.from_user.id), "unfollow", bot_id)
+        await message.answer(response)
+
     await dp.start_polling(bot)
 
+async def main():
+    await asyncio.gather(*[start_bot(tokens) for tokens in TOKENS])
 
 if __name__ == "__main__":
     asyncio.run(main())

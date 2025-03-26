@@ -1,47 +1,38 @@
 import os
 from pathlib import Path
-
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / ".env")
 
+# Database configuration
+POSTGRES_USER = os.getenv("POSTGRES_USER")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
+POSTGRES_DB = os.getenv("POSTGRES_DB")
+DATABASE_URL = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@postgres:5432/{POSTGRES_DB}"
+
+# Security
 SECRET_KEY = os.getenv("SECRET_KEY")
 
-postgres_user = os.getenv("POSTGRES_USER")
-postgres_password = os.getenv("POSTGRES_PASSWORD")
-postgres_db = os.getenv("POSTGRES_DB")
-
-url = f'postgresql+asyncpg://{postgres_user}:{postgres_password}@postgres:5432/{postgres_db}'
-
-private_key_path = BASE_DIR / "api" / "certs" / "jwt-private.pem"
-public_key_path = BASE_DIR / "api" / "certs" / "jwt-public.pem"
-
-algorithm = 'RS256'
-access_token_expire_minutes: int = 15
-
+# Application messages
 ERROR_MESSAGES = {
-    "chat_id_exists": "Чат с таким ID уже существует.",
-    "user_id_exists": "Пользователь с таким ID уже существует.",
-    "database_integrity_error": "Ошибка целостности базы данных.",
-    "user_not_found": "Пользователь не найден.",
-    "internal_server_error": "Внутренняя ошибка сервера.",
-    "message_send_error": "Ошибка при отправке сообщения на servant.",
-    "master_not_found": "Мастер не найден.",
-    "invalid_input": "Некорректные данные. Проверьте ввод и попробуйте снова.",
-    "subscription_error": "Ошибка при попытке подписки.",
-    "unsubscription_error": "Ошибка при попытке отписки.",
-    "follow_error": "Ошибка при попытке подписки на обновления.",
-    "unfollow_error": "Ошибка при попытке отписки от обновлений.",
+    "chat_id_exists": "Chat with this ID already exists",
+    "user_id_exists": "User with this ID already exists",
+    "database_integrity_error": "Database integrity error",
+    "user_not_found": "User not found",
+    "internal_server_error": "Internal server error",
+    "message_send_error": "Message sending error",
+    "master_not_found": "Master not found",
+    "invalid_input": "Invalid input data",
+    "subscription_error": "Subscription error",
+    "unsubscription_error": "Unsubscription error",
 }
 
 SUCCESS_MESSAGES = {
-    "user_deleted": "Пользователь успешно удален.",
-    "pong": "pong!",
-    "user_updated": "Данные пользователя успешно обновлены.",
-    "master_updated": "Данные мастера успешно обновлены.",
-    "message_sent": "Сообщение успешно отправлено.",
-    "subscribed": "Вы успешно подписались на рассылку.",
-    "unsubscribed": "Вы успешно отписались от рассылки.",
-    "followed": "Вы успешно подписались на обновления.",
-    "unfollowed": "Вы успешно отписались от обновлений.",
+    "user_deleted": "User successfully deleted",
+    "user_updated": "User data updated",
+    "master_updated": "Master data updated",
+    "message_sent": "Message sent successfully",
+    "subscribed": "Subscribed successfully",
+    "unsubscribed": "Unsubscribed successfully",
 }

@@ -3,6 +3,15 @@ import httpx
 from fastapi import HTTPException
 from config import SECRET_KEY
 
+"""
+Add tokens and the registration password to the environment variables.
+MASTER1
+MASTER2
+SERVANT1
+SERVANT2
+TEMP_PASS
+"""
+
 async def create_test_projects():
     """Create test projects via API endpoint"""
     if not all(os.getenv(var) for var in ['MASTER1', 'MASTER2', 'SERVANT1', 'SERVANT2', 'TEMP_PASS']):

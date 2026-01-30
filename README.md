@@ -1,201 +1,104 @@
-# Broadcasting System
+# BroadcastBot System 📡
 
-This project is a system for broadcasting anonymous messages via Telegram bots. It consists of four main services: a PostgreSQL database, a FastAPI backend, and two Telegram bots (Master Bot and Servant Bot) built using the aiogram framework.
+**Distributed anonymous messaging platform utilizing a Microservices-based architecture.**
+
+![Python](https://img.shields.io/badge/Python-3.12-blue.svg)
+![FastAPI](https://img.shields.io/badge/FastAPI-Backend-green.svg)
+![Aiogram](https://img.shields.io/badge/Aiogram-Async-blue.svg)
+![Docker](https://img.shields.io/badge/Docker-Compose-orange.svg)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-blue.svg)
+
+## 📖 Overview
+
+BroadcastBot is not just a chatbot; it is a system designed to decouple the **input source** (Master) from the **distribution layer** (Servant). This separation ensures security and scalability.
+
+The system consists of three distinct services orchestrated via Docker Compose:
+1.  **Master Bot:** An interface for authorized administrators to inject messages.
+2.  **API Gateway (FastAPI):** Central hub for business logic and database interactions.
+3.  **Servant Bot:** A distribution worker that polls the API and delivers content to subscribers.
+
+### 🏗 System Architecture
+
+```mermaid
+graph TD
+    User((Admin)) -->|/send| Master[Master Bot]
+    Master -->|POST /messages| API[FastAPI Backend]
+    API -->|Write| DB[(PostgreSQL)]
+    
+    Sub((Subscriber)) -->|/follow| Servant[Servant Bot]
+    Servant -->|GET /messages| API
+    API -->|Read| DB
+    
+    Servant -->|Broadcast| Sub
+```
+
+## 🚀 Key Features
+
+* **Decoupled Architecture:** The sender (Master) and receiver (Servant) logic are isolated in different containers.
+* **Persistent History:** All messages are stored in PostgreSQL. If a user unsubscribes and later resubscribes, they receive the "missed" backlog (History Recovery).
+* **Security:**
+    * **Master Access:** Protected by a secret token (`MASTER_TOKEN`).
+    * **Subscription Control:** Public access can be restricted via a registration token (`SERVANT_REG_TOKEN`).
+* **Dockerized Deployment:** One-command setup for DB, API, and Bots.
+
+## 🛠 Tech Stack
+
+* **Languages:** Python 3.12
+* **Frameworks:** FastAPI (API), Aiogram 3.x (Bots)
+* **Database:** PostgreSQL
+* **DevOps:** Docker, Docker Compose
+
+## ⚙️ Installation & Setup
+
+### 1. Clone the repository
+```bash
+git clone https://github.com/S1erben13/broadcast_bot.git
+cd broadcast_bot
+```
+
+### 2. Environment Configuration
+Create a `.env` file in the root directory. You can use `.env.example` as a reference.
+
+**Required Variables:**
+```ini
+# Database
+POSTGRES_USER=admin
+POSTGRES_PASSWORD=admin
+POSTGRES_DB=broadcast_db
+
+# Security Tokens
+MASTER_TOKEN=your_secret_master_token
+SERVANT_REG_TOKEN=your_public_invite_token
+
+# API Configuration
+API_BASE_URL=http://api:8000
+```
+
+### 3. Deploy with Docker
+```bash
+docker-compose up --build -d
+```
+*The `-d` flag runs containers in the background.*
+
+## 🎮 Usage Guide
+
+### For Administrators (Master Bot)
+1.  **Auth:** Send `/register <MASTER_TOKEN>` to authorize yourself as a sender.
+2.  **Send:** Any text or media sent to the bot will be processed by the API and queued for distribution.
+
+### For Users (Servant Bot)
+1.  **Subscribe:** Send `/follow <SERVANT_REG_TOKEN>` (token required for the first time only).
+2.  **Manage:** Use `/unfollow` to stop receiving messages and `/follow` (no token) to resume.
+3.  **Sync:** Upon resubscribing, the bot will fetch missed messages from the API.
+
+## 🔌 API Reference
+
+The internal API service runs on port `8000`.
+
+* `POST /messages` - Save a new broadcast message.
+* `GET /messages` - Fetch messages (supports pagination/offset).
+* `POST /users` - Register a new subscriber.
+* `PATCH /users/{id}` - Update subscriber status.
 
 ---
-
-## Key Features
-
-### **Master Bot**:
-
-- Allows an authorized user (Master) to send anonymous messages.
-    
-- Messages are sent to the FastAPI backend, which stores them in the database.
-    
-- **Registration**: Masters can register using the `/register <token>` command, where `<token>` is a predefined secret token.
-    
-
-### **Servant Bot**:
-
-- Users can subscribe or unsubscribe using the `/follow` and `/unfollow` commands.
-    
-- **First-time Subscription**: Users must provide a valid token when subscribing for the first time using `/follow <token>`.
-    
-- Continuously monitors the database for new messages via the FastAPI backend.
-    
-- Sends new messages to all subscribed users.
-    
-- If a user resubscribes after unsubscribing, they will receive all messages that were sent during their absence.
-    
-
-### **Message Broadcasting**:
-
-- Messages sent through the Master Bot are instantly delivered to all subscribed users via the Servant Bot.
-    
-
-### **Database Storage**:
-
-- All messages and user subscriptions are stored in a PostgreSQL database for logging and future reference.
-    
-
-### **Dockerized**:
-
-- The entire system is containerized using Docker Compose, making it easy to deploy and scale.
-    
-
----
-
-## How It Works
-
-### **Master Bot**:
-
-1. **Registration**:
-    
-    - A user becomes a Master by sending the `/register <token>` command to the Master Bot.
-        
-    - The token must match the predefined `MASTER_TOKEN` in the `.env` file.
-        
-2. **Sending Messages**:
-    
-    - Once registered, Masters can send messages, which are forwarded to the FastAPI backend and stored in the database.
-        
-
-### **Servant Bot**:
-
-1. **User Subscription**:
-    
-    - Users subscribe to the Servant Bot using the `/follow <token>` command (required only for the first subscription).
-        
-    - After the first subscription, users can use `/follow` and `/unfollow` without a token.
-        
-2. **Message Broadcasting**:
-    
-    - The Servant Bot continuously checks the database for new messages.
-        
-    - When a new message is found, it is broadcasted to all subscribed users.
-        
-3. **Resubscription Handling**:
-    
-    - If a user resubscribes after unsubscribing, they will receive all messages that were sent during their absence.
-        
-
----
-
-## Technologies Used
-
-### **Telegram Bots**:
-
-- Built using **aiogram** (Python framework for Telegram Bot API).
-    
-
-### **Backend**:
-
-- **FastAPI** for handling API requests.
-    
-
-### **Database**:
-
-- **PostgreSQL** for storing messages and user subscriptions.
-    
-
-### **Containerization**:
-
-- **Docker** and **Docker Compose** for easy deployment and isolation of services.
-    
-
-### **Environment Management**:
-
-- `.env` files for configuration.
-    
-
----
-
-## API Endpoints
-
-### **Messages**:
-
-- `POST /messages`: Create a new message.
-    
-- `GET /messages`: Retrieve messages created after a specific message ID.
-    
-
-### **Users**:
-
-- `POST /users`: Create a new user.
-    
-- `PATCH /users/{chat_id}`: Update a user's data.
-    
-- `GET /users/{chat_id}`: Retrieve a user by their chat ID.
-    
-- `GET /users`: Retrieve all users.
-    
-
----
-
-## Bot Commands
-
-### **Master Bot**:
-
-- `/register <token>`: Register as a Master. The token must match the `MASTER_TOKEN` in the `.env` file.
-    
-
-### **Servant Bot**:
-
-- `/start`: Start the bot and display the subscription options.
-    
-- `/follow <token>`: Subscribe to receive messages (token required only for the first subscription).
-    
-- `/follow`: Subscribe to receive messages (for users who have already subscribed once).
-    
-- `/unfollow`: Unsubscribe from receiving messages.
-    
-
----
-
-## Docker Setup
-
-The project is fully dockerized, with each service (except the database) based on the same Python environment image. Each service installs its own dependencies, ensuring isolation.
-
-To start the project, run:
-
-bash
-
-Copy
-
-docker-compose up --build
-
-This will start all services, including the database, API, and both bots.
-
----
-
-## Environment Variables
-
-### **Master Bot**:
-
-- `MASTER_TOKEN`: The secret token required for registering as a Master.
-    
-
-### **Servant Bot**:
-
-- `SERVANT_REG_TOKEN`: The secret token required for the first-time subscription.
-    
-
-### **Database**:
-
-- `POSTGRES_USER`: PostgreSQL username.
-    
-- `POSTGRES_PASSWORD`: PostgreSQL password.
-    
-- `POSTGRES_DB`: PostgreSQL database name.
-    
-
-### **API**:
-
-- `API_BASE_URL`: The base URL for the FastAPI backend.
-    
-
----
-
-## Conclusion
-
-This system provides a robust and scalable solution for broadcasting anonymous messages via Telegram. The use of Docker ensures easy deployment and scalability, while the modular design allows for future enhancements. The addition of token-based registration and subscription ensures secure access to the system.
+*Created by [Vladimir Popov](https://github.com/S1erben13)*
